@@ -21,6 +21,29 @@ import { wsReceiver, wsSender } from '../../utilsBundle';
 
 const kWebViewDebug = debug('pw:harmonyos:webview');
 
+/**
+ * Network request from browser
+ */
+export interface NetworkRequest {
+  url: string;
+  method: string;
+  headers: Record<string, string>;
+  postData?: string;
+  intercepting: boolean;
+  requestId?: string;
+}
+
+/**
+ * Mock response for network request
+ */
+export interface NetworkResponse {
+  status?: number;
+  statusText?: string;
+  headers?: Record<string, string>;
+  body?: string;
+  errorReason?: string;
+}
+
 export interface SocketBackend extends EventEmitter {
   write(data: Buffer): Promise<void>;
   close(): void;
@@ -367,71 +390,127 @@ export class WebView {
   }
 
   /**
-   * Set up network request interception
-   * @param handler Route handler function that receives request info
+   * Set up network request interception using Fetch API
+   * @param handler Route handler function that receives request and can return mock response
    */
-  async setRequestHandler(handler: (params: any) => any): Promise<void> {
+  async setRequestHandler(handler: (request: NetworkRequest) => Promise<NetworkResponse | null>): Promise<void> {
     if (!this._pageId)
       throw new Error('No page target available');
 
     await this._ensureSession();
     
-    // Enable Network domain
+    // Enable Network domain for monitoring
     await this._client.send('Network.enable', {});
 
-    // Set up request interception
-    await this._client.send('Network.setRequestInterception', {
-      patterns: [{ urlPattern: '*' }]
+    // Enable Fetch domain for interception
+    await this._client.send('Fetch.enable', {
+      patterns: [{ urlPattern: '*' }],
+      handleAuthRequests: true,
     });
 
     this._routeHandler = handler;
 
-    // Listen for requests
-    this._client.addEventListener('Network.requestWillBeSent', async (params: any) => {
+    // Listen for Fetch requests
+    this._client.addEventListener('Fetch.requestPaused', async (params: any) => {
       if (this._routeHandler) {
+        const request: NetworkRequest = {
+          url: params.request.url,
+          method: params.request.method,
+          headers: params.request.headers,
+          postData: params.request.postData,
+          intercepting: true,
+          requestId: params.requestId,
+        };
+
         try {
-          const response = await this._routeHandler({
-            url: params.request.url,
-            method: params.request.method,
-            headers: params.request.headers,
-            postData: params.request.postData,
-          });
+          const response = await this._routeHandler(request);
 
           if (response) {
-            // Fulfill the request
+            // Fulfill the request with mock response
             await this._client.send('Fetch.fulfillRequest', {
               requestId: params.requestId,
-              response: {
-                status: response.status || 200,
-                statusText: response.statusText || 'OK',
-                headers: response.headers || {},
-                body: response.body ? Buffer.from(response.body).toString('base64') : undefined,
-              }
+              responseCode: response.status || 200,
+              responseHeaders: Object.entries(response.headers || {}).map(([name, value]) => ({
+                name,
+                value: String(value),
+              })),
+              body: response.body ? Buffer.from(response.body).toString('base64') : undefined,
+            });
+          } else {
+            // Continue with original request
+            await this._client.send('Fetch.continueRequest', {
+              requestId: params.requestId,
             });
           }
         } catch (e) {
           kWebViewDebug('Route handler error:', e);
+          // Continue on error
+          await this._client.send('Fetch.continueRequest', {
+            requestId: params.requestId,
+          });
         }
       }
+    });
+
+    kWebViewDebug('Network interception enabled');
+  }
+
+  /**
+   * Mock a network response for matching URL pattern
+   * @param urlPattern URL pattern to match (string or regex)
+   * @param response Mock response
+   */
+  async mockResponse(urlPattern: string | RegExp, response: NetworkResponse): Promise<void> {
+    const pattern = urlPattern instanceof RegExp 
+      ? urlPattern 
+      : new RegExp(urlPattern);
+
+    await this.setRequestHandler(async (req) => {
+      if (pattern.test(req.url)) {
+        kWebViewDebug(`Mocking: ${req.url}`);
+        return response;
+      }
+      return null; // Continue with original request
     });
   }
 
   /**
-   * Mock a network response
-   * @param urlPattern URL pattern to match
-   * @param response Mock response
+   * Abort network request matching pattern
+   * @param urlPattern URL pattern to abort
+   * @param reason Abort reason code
    */
-  async mockResponse(urlPattern: string, response: {
-    status?: number;
-    statusText?: string;
-    headers?: Record<string, string>;
-    body?: string;
-  }): Promise<void> {
+  async abortRequest(urlPattern: string | RegExp, reason: string = 'failed'): Promise<void> {
+    const pattern = urlPattern instanceof RegExp 
+      ? urlPattern 
+      : new RegExp(urlPattern);
+
     await this.setRequestHandler(async (req) => {
-      if (req.url.includes(urlPattern)) {
-        return response;
+      if (pattern.test(req.url)) {
+        kWebViewDebug(`Aborting: ${req.url}`);
+        return { errorReason: reason } as any;
       }
-      return null; // Continue with original request
+      return null;
+    });
+  }
+
+  /**
+   * Mock multiple network responses
+   * @param mocks Array of {pattern, response} pairs
+   */
+  async mockResponses(mocks: Array<{ pattern: string | RegExp; response: NetworkResponse }>): Promise<void> {
+    const patterns = mocks.map(m => ({
+      pattern: m.pattern instanceof RegExp ? m.pattern : new RegExp(m.pattern),
+      response: m.response,
+    }));
+
+    await this.setRequestHandler(async (req) => {
+      for (const { pattern, response } of patterns) {
+        if (pattern.test(req.url)) {
+          kWebViewDebug(`Mocking: ${req.url}`);
+          return response;
+        }
+      }
+      return null;
     });
   }
 
