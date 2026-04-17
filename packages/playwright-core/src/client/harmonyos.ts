@@ -310,6 +310,39 @@ export class HarmonyOSDevice extends ChannelOwner<channels.HarmonyOSDeviceChanne
     `);
   }
 
+  /**
+   * 页面导航
+   * @param socketName WebView DevTools socket 名称
+   * @param url 目标 URL
+   */
+  async webViewNavigate(socketName: string, url: string): Promise<void> {
+    await this.webViewEvaluate(socketName, `window.location.href = '${url}'`);
+  }
+
+  /**
+   * 后退一页
+   * @param socketName WebView DevTools socket 名称
+   */
+  async webViewGoBack(socketName: string): Promise<void> {
+    await this.webViewEvaluate(socketName, 'window.history.back()');
+  }
+
+  /**
+   * 前进一页
+   * @param socketName WebView DevTools socket 名称
+   */
+  async webViewGoForward(socketName: string): Promise<void> {
+    await this.webViewEvaluate(socketName, 'window.history.forward()');
+  }
+
+  /**
+   * 刷新页面
+   * @param socketName WebView DevTools socket 名称
+   */
+  async webViewReload(socketName: string): Promise<void> {
+    await this.webViewEvaluate(socketName, 'window.location.reload()');
+  }
+
   async close() {
     await this._channel.close();
   }

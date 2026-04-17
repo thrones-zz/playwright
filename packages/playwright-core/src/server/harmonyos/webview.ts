@@ -280,7 +280,7 @@ export class WebView {
   }
 
   /**
-   * Navigate to URL
+   * Navigate to URL (equivalent to page.goto)
    */
   async navigate(url: string): Promise<void> {
     if (!this._pageId)
@@ -288,6 +288,44 @@ export class WebView {
 
     await this._ensureSession();
     await this._client.send('Page.navigate', { url });
+  }
+
+  /**
+   * Navigate back in history
+   */
+  async goBack(): Promise<void> {
+    await this.evaluate('window.history.back()');
+  }
+
+  /**
+   * Navigate forward in history
+   */
+  async goForward(): Promise<void> {
+    await this.evaluate('window.history.forward()');
+  }
+
+  /**
+   * Reload the current page
+   */
+  async reload(): Promise<void> {
+    await this.evaluate('window.location.reload()');
+  }
+
+  /**
+   * Get navigation history length
+   */
+  async historyLength(): Promise<number> {
+    const length = await this.evaluate('window.history.length');
+    return length || 1;
+  }
+
+  /**
+   * Check if can navigate back
+   */
+  async canGoBack(): Promise<boolean> {
+    const current = await this.evaluate('window.history.current');
+    const length = await this.historyLength();
+    return length > 1;
   }
 
   /**
