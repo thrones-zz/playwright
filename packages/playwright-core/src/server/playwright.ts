@@ -16,6 +16,7 @@
 
 import { Android } from './android/android';
 import { AdbBackend } from './android/backendAdb';
+import { HarmonyOS, HdcBackend } from './harmonyos/harmonyos';
 import { BidiChromium } from './bidi/bidiChromium';
 import { BidiFirefox } from './bidi/bidiFirefox';
 import { Chromium } from './chromium/chromium';
@@ -39,6 +40,7 @@ type PlaywrightOptions = {
 export class Playwright extends SdkObject {
   readonly chromium: BrowserType;
   readonly android: Android;
+  readonly harmonyos: HarmonyOS;
   readonly electron: Electron;
   readonly firefox: BrowserType;
   readonly webkit: BrowserType;
@@ -62,6 +64,7 @@ export class Playwright extends SdkObject {
     this.webkit = new WebKit(this);
     this.electron = new Electron(this);
     this.android = new Android(this, new AdbBackend());
+    this.harmonyos = new HarmonyOS(this, new HdcBackend());
     this.debugController = new DebugController(this);
   }
 

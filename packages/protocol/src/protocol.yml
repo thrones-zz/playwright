@@ -790,6 +790,7 @@ Playwright:
     firefox: BrowserType
     webkit: BrowserType
     android: Android
+    harmonyos: HarmonyOS
     electron: Electron
     utils: LocalUtils?
     # Only present when connecting remotely via BrowserType.connect() method.
@@ -4525,6 +4526,13 @@ AndroidDevice:
 
     close:
       internal: true
+
+    connectToWebView:
+      title: Connect to WebView
+      parameters:
+        socketName: string
+      returns:
+        context: BrowserContext
 
   events:
     close:

@@ -362,6 +362,7 @@ scheme.PlaywrightInitializer = tObject({
   firefox: tChannel(['BrowserType']),
   webkit: tChannel(['BrowserType']),
   android: tChannel(['Android']),
+  harmonyos: tChannel(['HarmonyOS']),
   electron: tChannel(['Electron']),
   utils: tOptional(tChannel(['LocalUtils'])),
   preLaunchedBrowser: tOptional(tChannel(['Browser'])),
@@ -862,6 +863,7 @@ scheme.WebSocketWaitForEventInfoParams = tType('EventTargetWaitForEventInfoParam
 scheme.DebuggerWaitForEventInfoParams = tType('EventTargetWaitForEventInfoParams');
 scheme.ElectronApplicationWaitForEventInfoParams = tType('EventTargetWaitForEventInfoParams');
 scheme.AndroidDeviceWaitForEventInfoParams = tType('EventTargetWaitForEventInfoParams');
+scheme.HarmonyOSDeviceWaitForEventInfoParams = tType('EventTargetWaitForEventInfoParams');
 scheme.EventTargetWaitForEventInfoResult = tOptional(tObject({}));
 scheme.BrowserContextWaitForEventInfoResult = tType('EventTargetWaitForEventInfoResult');
 scheme.PageWaitForEventInfoResult = tType('EventTargetWaitForEventInfoResult');
@@ -870,6 +872,7 @@ scheme.WebSocketWaitForEventInfoResult = tType('EventTargetWaitForEventInfoResul
 scheme.DebuggerWaitForEventInfoResult = tType('EventTargetWaitForEventInfoResult');
 scheme.ElectronApplicationWaitForEventInfoResult = tType('EventTargetWaitForEventInfoResult');
 scheme.AndroidDeviceWaitForEventInfoResult = tType('EventTargetWaitForEventInfoResult');
+scheme.HarmonyOSDeviceWaitForEventInfoResult = tType('EventTargetWaitForEventInfoResult');
 scheme.BrowserContextInitializer = tObject({
   debugger: tChannel(['Debugger']),
   requestContext: tChannel(['APIRequestContext']),
@@ -3080,3 +3083,74 @@ scheme.JsonPipeSendParams = tObject({
 scheme.JsonPipeSendResult = tOptional(tObject({}));
 scheme.JsonPipeCloseParams = tOptional(tObject({}));
 scheme.JsonPipeCloseResult = tOptional(tObject({}));
+scheme.HarmonyOSInitializer = tOptional(tObject({}));
+scheme.HarmonyOSDevicesParams = tObject({
+  host: tOptional(tString),
+  port: tOptional(tInt),
+});
+scheme.HarmonyOSDevicesResult = tObject({
+  devices: tArray(tChannel(['HarmonyOSDevice'])),
+});
+scheme.HarmonyOSDeviceInitializer = tObject({
+  model: tString,
+  serial: tString,
+  osVersion: tString,
+});
+scheme.HarmonyOSDeviceCloseEvent = tOptional(tObject({}));
+scheme.HarmonyOSDeviceWebViewAddedEvent = tObject({
+  webView: tType('HarmonyOSWebView'),
+});
+scheme.HarmonyOSDeviceWebViewRemovedEvent = tObject({
+  socketName: tString,
+});
+scheme.HarmonyOSDeviceScreenshotParams = tOptional(tObject({}));
+scheme.HarmonyOSDeviceScreenshotResult = tObject({
+  binary: tBinary,
+});
+scheme.HarmonyOSDeviceShellParams = tObject({
+  command: tString,
+});
+scheme.HarmonyOSDeviceShellResult = tObject({
+  result: tBinary,
+});
+scheme.HarmonyOSDeviceGetPageSourceParams = tOptional(tObject({}));
+scheme.HarmonyOSDeviceGetPageSourceResult = tObject({
+  source: tType('ArkUINode'),
+});
+scheme.HarmonyOSDeviceFindElementParams = tObject({
+  selector: tType('ArkUISelector'),
+});
+scheme.HarmonyOSDeviceFindElementResult = tObject({
+  element: tOptional(tType('ArkUINode')),
+});
+scheme.HarmonyOSDeviceFindElementsParams = tObject({
+  selector: tType('ArkUISelector'),
+});
+scheme.HarmonyOSDeviceFindElementsResult = tObject({
+  elements: tArray(tType('ArkUINode')),
+});
+scheme.HarmonyOSDeviceCloseParams = tOptional(tObject({}));
+scheme.HarmonyOSDeviceCloseResult = tOptional(tObject({}));
+scheme.HarmonyOSWebView = tObject({
+  socketName: tString,
+  package: tString,
+  title: tString,
+  url: tString,
+});
+scheme.ArkUINode = tObject({
+  id: tString,
+  type: tString,
+  text: tOptional(tString),
+  resourceId: tOptional(tString),
+  clickable: tOptional(tBoolean),
+  enabled: tOptional(tBoolean),
+  bounds: tOptional(tType('Rect')),
+  children: tOptional(tArray(tType('ArkUINode'))),
+});
+scheme.ArkUISelector = tObject({
+  type: tOptional(tString),
+  text: tOptional(tString),
+  resourceId: tOptional(tString),
+  clickable: tOptional(tBoolean),
+  enabled: tOptional(tBoolean),
+});

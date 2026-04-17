@@ -15,6 +15,7 @@
  */
 
 import { Android } from './android';
+import { HarmonyOS } from './harmonyos';
 import { Browser } from './browser';
 import { BrowserType } from './browserType';
 import { ChannelOwner } from './channelOwner';
@@ -28,6 +29,7 @@ import type { LaunchOptions } from 'playwright-core';
 
 export class Playwright extends ChannelOwner<channels.PlaywrightChannel> {
   readonly _android: Android;
+  readonly _harmonyos: HarmonyOS;
   readonly _electron: Electron;
   readonly chromium: BrowserType;
   readonly firefox: BrowserType;
@@ -53,6 +55,8 @@ export class Playwright extends ChannelOwner<channels.PlaywrightChannel> {
     this.webkit._playwright = this;
     this._android = Android.from(initializer.android);
     this._android._playwright = this;
+    this._harmonyos = HarmonyOS.from(initializer.harmonyos);
+    this._harmonyos._playwright = this;
     this._electron = Electron.from(initializer.electron);
     this._electron._playwright = this;
     this.devices = this._connection.localUtils()?.devices ?? {};
