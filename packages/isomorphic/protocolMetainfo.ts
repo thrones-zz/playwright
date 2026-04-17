@@ -72,6 +72,7 @@ export const methodMetainfo = new Map<string, MethodMetainfo>([
   ['Debugger.waitForEventInfo', { title: 'Wait for event "{info.event}"', snapshot: true, }],
   ['ElectronApplication.waitForEventInfo', { title: 'Wait for event "{info.event}"', snapshot: true, }],
   ['AndroidDevice.waitForEventInfo', { title: 'Wait for event "{info.event}"', snapshot: true, }],
+  ['HarmonyOSDevice.waitForEventInfo', { title: 'Wait for event "{info.event}"', snapshot: true, }],
   ['BrowserContext.addCookies', { title: 'Add cookies', group: 'configuration', }],
   ['BrowserContext.addInitScript', { title: 'Add init script', group: 'configuration', }],
   ['BrowserContext.clearCookies', { title: 'Clear cookies', group: 'configuration', }],
@@ -336,10 +337,21 @@ export const methodMetainfo = new Map<string, MethodMetainfo>([
   ['AndroidDevice.shell', { title: 'Execute shell command', group: 'configuration', }],
   ['AndroidDevice.installApk', { title: 'Install apk', }],
   ['AndroidDevice.push', { title: 'Push', }],
-  ['AndroidDevice.connectToWebView', { title: 'Connect to Web View', }],
+  ['AndroidDevice.connectToWebView', { title: 'Connect to WebView', }],
   ['AndroidDevice.close', { internal: true, }],
   ['JsonPipe.send', { internal: true, }],
-  ['JsonPipe.close', { internal: true, }]
+  ['JsonPipe.close', { internal: true, }],
+  ['HarmonyOS.devices', { title: 'Discover devices', }],
+  ['HarmonyOSDevice.screenshot', { title: 'Take screenshot', }],
+  ['HarmonyOSDevice.shell', { title: 'Execute shell command', }],
+  ['HarmonyOSDevice.getPageSource', { title: 'Get UI tree', }],
+  ['HarmonyOSDevice.findElement', { title: 'Find element', }],
+  ['HarmonyOSDevice.findElements', { title: 'Find elements', }],
+  ['HarmonyOSDevice.sendFile', { title: 'Send file to device', }],
+  ['HarmonyOSDevice.connectWebViewCDP', { title: 'Connect to WebView CDP', }],
+  ['HarmonyOSDevice.webViewEvaluate', { title: 'Evaluate JavaScript in WebView', }],
+  ['HarmonyOSDevice.webViewScreenshot', { title: 'Take WebView screenshot', }],
+  ['HarmonyOSDevice.close', { internal: true, }]
 ]);
 
 export function getMetainfo(metadata: { type: string, method: string }): MethodMetainfo | undefined {

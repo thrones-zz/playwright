@@ -29,6 +29,7 @@ import { Progress, ProgressController } from '../progress';
 import { SdkObject } from '../instrumentation';
 import { ArkUIInspector, ArkUISelector, ArkUINode } from './arkui';
 import { ArkUIRecorder, RecorderOptions } from './arkuiRecorder';
+import { WebViewCDPClient, WebView, connectToWebView } from './webview';
 
 import type * as channels from '@protocol/channels';
 
@@ -101,6 +102,7 @@ export class HarmonyOSDevice extends SdkObject {
   private _pollingWebViews: NodeJS.Timeout | undefined;
   private _isClosed = false;
   private _inspector: ArkUIInspector | null = null;
+  private _cdpClients = new Map<string, WebViewCDPClient>();
 
   static Events = {
     WebViewAdded: 'webViewAdded',
@@ -285,6 +287,11 @@ export class HarmonyOSDevice extends SdkObject {
     this._isClosed = true;
     if (this._pollingWebViews)
       clearTimeout(this._pollingWebViews);
+    // Close all CDP clients
+    for (const client of this._cdpClients.values()) {
+      client.close();
+    }
+    this._cdpClients.clear();
     await this._backend.close();
     this.emit(HarmonyOSDevice.Events.Close);
   }
@@ -386,6 +393,157 @@ export class HarmonyOSDevice extends SdkObject {
 
   async connectToWebView(socketName: string): Promise<SocketBackend> {
     return await this._backend.open(`localabstract:${socketName}`);
+  }
+
+  /**
+   * Connect to WebView and get CDP client for JavaScript execution
+   * @param socketName WebView DevTools socket name
+   * @returns CDP client for WebView interaction
+   */
+  async connectWebViewCDP(socketName: string): Promise<WebViewCDPClient> {
+    if (this._cdpClients.has(socketName)) {
+      const existing = this._cdpClients.get(socketName)!;
+      if (!existing.isClosed()) {
+        return existing;
+      }
+      this._cdpClients.delete(socketName);
+    }
+
+    kHarmonyOSDebug(`Connecting to WebView CDP: ${socketName}`);
+    const socket = await this._backend.open(`localabstract:${socketName}`);
+    
+    // WebSocket handshake
+    const handshake = [
+      'GET /devtools/browser HTTP/1.1',
+      'Upgrade: WebSocket',
+      'Connection: Upgrade',
+      'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==',
+      'Sec-WebSocket-Version: 13',
+      '', ''
+    ].join('\r\n');
+    
+    await socket.write(Buffer.from(handshake));
+    
+    // Wait for upgrade response
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('WebSocket handshake timeout')), 10000);
+      socket.on('data', (data: Buffer) => {
+        if (data.toString().includes('101')) {
+          clearTimeout(timeout);
+          resolve();
+        }
+      });
+      socket.on('error', reject);
+    });
+
+    const client = new WebViewCDPClient(socket);
+    this._cdpClients.set(socketName, client);
+    
+    client.on('close', () => {
+      this._cdpClients.delete(socketName);
+    });
+
+    kHarmonyOSDebug(`Connected to WebView CDP: ${socketName}`);
+    return client;
+  }
+
+  /**
+   * Connect to WebView and get WebView instance
+   * @param socketName WebView DevTools socket name
+   * @param pkg Package name
+   * @returns WebView instance with high-level API
+   */
+  async connectWebView(socketName: string, pkg: string): Promise<WebView> {
+    const client = await this.connectWebViewCDP(socketName);
+    return new WebView(client, socketName, pkg);
+  }
+
+  /**
+   * Execute JavaScript in WebView
+   * @param socketName WebView DevTools socket name
+   * @param expression JavaScript expression to execute
+   * @returns Execution result
+   */
+  async webViewEvaluate(socketName: string, expression: string): Promise<any> {
+    const client = await this.connectWebViewCDP(socketName);
+    
+    // Get targets and attach to page
+    const { targetInfos } = await client.send('Target.getTargets');
+    const pageTarget = targetInfos.find((t: any) => t.type === 'page' || t.type === 'webview');
+    
+    if (!pageTarget) {
+      throw new Error('No page target found in WebView');
+    }
+
+    const { sessionId } = await client.send('Target.attachToTarget', {
+      targetId: pageTarget.targetId,
+      flatten: true,
+    });
+
+    // Execute JavaScript
+    const result = await client.send('Runtime.evaluate', {
+      expression,
+      returnByValue: true,
+      sessionId,
+    });
+
+    if (result.exceptionDetails) {
+      throw new Error(`JS Error: ${result.exceptionDetails.exception.description}`);
+    }
+
+    return result.result?.value;
+  }
+
+  /**
+   * Get WebView page source via CDP
+   * @param socketName WebView DevTools socket name
+   * @returns HTML content
+   */
+  async webViewGetContent(socketName: string): Promise<string> {
+    return await this.webViewEvaluate(socketName, 'document.documentElement.outerHTML');
+  }
+
+  /**
+   * Navigate WebView to URL
+   * @param socketName WebView DevTools socket name
+   * @param url URL to navigate to
+   */
+  async webViewNavigate(socketName: string, url: string): Promise<void> {
+    const client = await this.connectWebViewCDP(socketName);
+    
+    const { targetInfos } = await client.send('Target.getTargets');
+    const pageTarget = targetInfos.find((t: any) => t.type === 'page' || t.type === 'webview');
+    
+    if (pageTarget) {
+      await client.send('Target.attachToTarget', {
+        targetId: pageTarget.targetId,
+        flatten: true,
+      });
+      await client.send('Page.navigate', { url });
+    }
+  }
+
+  /**
+   * Take screenshot of WebView content
+   * @param socketName WebView DevTools socket name
+   * @returns PNG image buffer
+   */
+  async webViewScreenshot(socketName: string): Promise<Buffer> {
+    const client = await this.connectWebViewCDP(socketName);
+    
+    const { targetInfos } = await client.send('Target.getTargets');
+    const pageTarget = targetInfos.find((t: any) => t.type === 'page' || t.type === 'webview');
+    
+    if (pageTarget) {
+      await client.send('Target.attachToTarget', {
+        targetId: pageTarget.targetId,
+        flatten: true,
+      });
+      const { data } = await client.send('Page.captureScreenshot', {});
+      return Buffer.from(data, 'base64');
+    }
+    
+    throw new Error('No page target found');
   }
 
   private _onWebViewAdded(webView: channels.HarmonyOSWebView) {

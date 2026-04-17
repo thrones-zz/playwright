@@ -83,8 +83,23 @@ export class HarmonyOSDeviceDispatcher extends Dispatcher<HarmonyOSDevice, chann
   }
 
   async sendFile(params: channels.HarmonyOSDeviceSendFileParams, progress: Progress): Promise<channels.HarmonyOSDeviceSendFileResult> {
-    await this._object.sendFile(params.localPath, params.remotePath);
-    return {};
+    await (this._object as any).sendFile(params.localPath, params.remotePath);
+    return undefined as any;
+  }
+
+  async connectWebViewCDP(params: channels.HarmonyOSDeviceConnectWebViewCDPParams, progress: Progress): Promise<channels.HarmonyOSDeviceConnectWebViewCDPResult> {
+    const client = await this._object.connectWebViewCDP(params.socketName);
+    return { clientId: params.socketName };
+  }
+
+  async webViewEvaluate(params: channels.HarmonyOSDeviceWebViewEvaluateParams, progress: Progress): Promise<channels.HarmonyOSDeviceWebViewEvaluateResult> {
+    const result = await this._object.webViewEvaluate(params.socketName, params.expression);
+    return { result };
+  }
+
+  async webViewScreenshot(params: channels.HarmonyOSDeviceWebViewScreenshotParams, progress: Progress): Promise<channels.HarmonyOSDeviceWebViewScreenshotResult> {
+    const binary = await this._object.webViewScreenshot(params.socketName);
+    return { binary };
   }
 
   async close(params: channels.HarmonyOSDeviceCloseParams, progress: Progress): Promise<channels.HarmonyOSDeviceCloseResult> {

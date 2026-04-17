@@ -191,6 +191,42 @@ export class HarmonyOSDevice extends ChannelOwner<channels.HarmonyOSDeviceChanne
     await this._channel.sendFile({ localPath, remotePath });
   }
 
+  /**
+   * 连接到 WebView CDP
+   * @param socketName WebView DevTools socket 名称
+   */
+  async connectWebViewCDP(socketName: string): Promise<string> {
+    const { clientId } = await this._channel.connectWebViewCDP({ socketName });
+    return clientId;
+  }
+
+  /**
+   * 在 WebView 中执行 JavaScript
+   * @param socketName WebView DevTools socket 名称
+   * @param expression JavaScript 表达式
+   */
+  async webViewEvaluate(socketName: string, expression: string): Promise<any> {
+    const { result } = await this._channel.webViewEvaluate({ socketName, expression });
+    return result;
+  }
+
+  /**
+   * 获取 WebView 页面内容
+   * @param socketName WebView DevTools socket 名称
+   */
+  async webViewGetContent(socketName: string): Promise<string> {
+    return await this.webViewEvaluate(socketName, 'document.documentElement.outerHTML') as string;
+  }
+
+  /**
+   * WebView 截图
+   * @param socketName WebView DevTools socket 名称
+   */
+  async webViewScreenshot(socketName: string): Promise<Buffer> {
+    const { binary } = await this._channel.webViewScreenshot({ socketName });
+    return binary;
+  }
+
   async close() {
     await this._channel.close();
   }

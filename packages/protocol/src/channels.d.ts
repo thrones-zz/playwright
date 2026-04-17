@@ -5467,6 +5467,10 @@ export interface HarmonyOSDeviceChannel extends HarmonyOSDeviceEventTarget, Even
   getPageSource(params?: HarmonyOSDeviceGetPageSourceParams, progress?: Progress): Promise<HarmonyOSDeviceGetPageSourceResult>;
   findElement(params: HarmonyOSDeviceFindElementParams, progress?: Progress): Promise<HarmonyOSDeviceFindElementResult>;
   findElements(params: HarmonyOSDeviceFindElementsParams, progress?: Progress): Promise<HarmonyOSDeviceFindElementsResult>;
+  sendFile(params: HarmonyOSDeviceSendFileParams, progress?: Progress): Promise<HarmonyOSDeviceSendFileResult>;
+  connectWebViewCDP(params: HarmonyOSDeviceConnectWebViewCDPParams, progress?: Progress): Promise<HarmonyOSDeviceConnectWebViewCDPResult>;
+  webViewEvaluate(params: HarmonyOSDeviceWebViewEvaluateParams, progress?: Progress): Promise<HarmonyOSDeviceWebViewEvaluateResult>;
+  webViewScreenshot(params: HarmonyOSDeviceWebViewScreenshotParams, progress?: Progress): Promise<HarmonyOSDeviceWebViewScreenshotResult>;
   close(params?: HarmonyOSDeviceCloseParams, progress?: Progress): Promise<HarmonyOSDeviceCloseResult>;
 }
 export type HarmonyOSDeviceCloseEvent = {};
@@ -5512,6 +5516,42 @@ export type HarmonyOSDeviceFindElementsOptions = {
 };
 export type HarmonyOSDeviceFindElementsResult = {
   elements: ArkUINode[],
+};
+export type HarmonyOSDeviceSendFileParams = {
+  localPath: string,
+  remotePath: string,
+};
+export type HarmonyOSDeviceSendFileOptions = {
+
+};
+export type HarmonyOSDeviceSendFileResult = void;
+export type HarmonyOSDeviceConnectWebViewCDPParams = {
+  socketName: string,
+};
+export type HarmonyOSDeviceConnectWebViewCDPOptions = {
+
+};
+export type HarmonyOSDeviceConnectWebViewCDPResult = {
+  clientId: string,
+};
+export type HarmonyOSDeviceWebViewEvaluateParams = {
+  socketName: string,
+  expression: string,
+};
+export type HarmonyOSDeviceWebViewEvaluateOptions = {
+
+};
+export type HarmonyOSDeviceWebViewEvaluateResult = {
+  result: any,
+};
+export type HarmonyOSDeviceWebViewScreenshotParams = {
+  socketName: string,
+};
+export type HarmonyOSDeviceWebViewScreenshotOptions = {
+
+};
+export type HarmonyOSDeviceWebViewScreenshotResult = {
+  binary: Binary,
 };
 export type HarmonyOSDeviceCloseParams = {};
 export type HarmonyOSDeviceCloseOptions = {};

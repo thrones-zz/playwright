@@ -3129,6 +3129,30 @@ scheme.HarmonyOSDeviceFindElementsParams = tObject({
 scheme.HarmonyOSDeviceFindElementsResult = tObject({
   elements: tArray(tType('ArkUINode')),
 });
+scheme.HarmonyOSDeviceSendFileParams = tObject({
+  localPath: tString,
+  remotePath: tString,
+});
+scheme.HarmonyOSDeviceSendFileResult = tOptional(tObject({}));
+scheme.HarmonyOSDeviceConnectWebViewCDPParams = tObject({
+  socketName: tString,
+});
+scheme.HarmonyOSDeviceConnectWebViewCDPResult = tObject({
+  clientId: tString,
+});
+scheme.HarmonyOSDeviceWebViewEvaluateParams = tObject({
+  socketName: tString,
+  expression: tString,
+});
+scheme.HarmonyOSDeviceWebViewEvaluateResult = tObject({
+  result: tAny,
+});
+scheme.HarmonyOSDeviceWebViewScreenshotParams = tObject({
+  socketName: tString,
+});
+scheme.HarmonyOSDeviceWebViewScreenshotResult = tObject({
+  binary: tBinary,
+});
 scheme.HarmonyOSDeviceCloseParams = tOptional(tObject({}));
 scheme.HarmonyOSDeviceCloseResult = tOptional(tObject({}));
 scheme.HarmonyOSWebView = tObject({
@@ -3154,8 +3178,3 @@ scheme.ArkUISelector = tObject({
   clickable: tOptional(tBoolean),
   enabled: tOptional(tBoolean),
 });
-scheme.HarmonyOSDeviceSendFileParams = tObject({
-  localPath: tString,
-  remotePath: tString,
-});
-scheme.HarmonyOSDeviceSendFileResult = tOptional(tObject({}));

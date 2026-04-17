@@ -4518,7 +4518,7 @@ AndroidDevice:
         mode: int?
 
     connectToWebView:
-      title: Connect to Web View
+      title: Connect to WebView
       parameters:
         socketName: string
       returns:
@@ -4526,13 +4526,6 @@ AndroidDevice:
 
     close:
       internal: true
-
-    connectToWebView:
-      title: Connect to WebView
-      parameters:
-        socketName: string
-      returns:
-        context: BrowserContext
 
   events:
     close:
@@ -4627,3 +4620,139 @@ JsonPipe:
     closed:
       parameters:
         reason: string?
+
+
+# ============ HarmonyOS Device Support ============
+
+HarmonyOS:
+  type: interface
+
+  commands:
+    devices:
+      title: Discover devices
+      parameters:
+        host: string?
+        port: int?
+      returns:
+        devices:
+          type: array
+          items: HarmonyOSDevice
+
+
+HarmonyOSDevice:
+  type: interface
+
+  extends: EventTarget
+
+  initializer:
+    model: string
+    serial: string
+    osVersion: string
+
+  commands:
+    screenshot:
+      title: Take screenshot
+      returns:
+        binary: binary
+
+    shell:
+      title: Execute shell command
+      parameters:
+        command: string
+      returns:
+        result: binary
+
+    getPageSource:
+      title: Get UI tree
+      returns:
+        source: ArkUINode
+
+    findElement:
+      title: Find element
+      parameters:
+        selector: ArkUISelector
+      returns:
+        element: ArkUINode?
+
+    findElements:
+      title: Find elements
+      parameters:
+        selector: ArkUISelector
+      returns:
+        elements:
+          type: array
+          items: ArkUINode
+
+    sendFile:
+      title: Send file to device
+      parameters:
+        localPath: string
+        remotePath: string
+
+    connectWebViewCDP:
+      title: Connect to WebView CDP
+      parameters:
+        socketName: string
+      returns:
+        clientId: string
+
+    webViewEvaluate:
+      title: Evaluate JavaScript in WebView
+      parameters:
+        socketName: string
+        expression: string
+      returns:
+        result: json
+
+    webViewScreenshot:
+      title: Take WebView screenshot
+      parameters:
+        socketName: string
+      returns:
+        binary: binary
+
+    close:
+      internal: true
+
+  events:
+    close:
+    webViewAdded:
+      parameters:
+        webView: HarmonyOSWebView
+    webViewRemoved:
+      parameters:
+        socketName: string
+
+
+HarmonyOSWebView:
+  type: object
+  properties:
+    socketName: string
+    package: string
+    title: string
+    url: string
+
+
+ArkUINode:
+  type: object
+  properties:
+    id: string
+    type: string
+    text: string?
+    resourceId: string?
+    clickable: boolean?
+    enabled: boolean?
+    bounds: Rect?
+    children:
+      type: array?
+      items: ArkUINode
+
+
+ArkUISelector:
+  type: object
+  properties:
+    type: string?
+    text: string?
+    resourceId: string?
+    clickable: boolean?
+    enabled: boolean?
