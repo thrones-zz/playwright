@@ -30,6 +30,7 @@ import { SdkObject } from '../instrumentation';
 import { ArkUIInspector, ArkUISelector, ArkUINode } from './arkui';
 import { ArkUIRecorder, RecorderOptions } from './arkuiRecorder';
 import { WebViewCDPClient, WebView, connectToWebView } from './webview';
+import { HarmonyOSContext, HarmonyOSPage, createContext, createPage } from './context';
 
 import type * as channels from '@protocol/channels';
 
@@ -798,6 +799,107 @@ export class HarmonyOSDevice extends SdkObject {
     json: () => any;
   }> {
     return this.request(url, { method: 'DELETE', headers });
+  }
+
+  /**
+   * 创建浏览器上下文 (newContext)
+   */
+  async newContext(): Promise<HarmonyOSContext> {
+    return createContext(this);
+  }
+
+  /**
+   * 创建新页面 (newPage)
+   */
+  async newPage(context?: HarmonyOSContext): Promise<HarmonyOSPage> {
+    if (context) {
+      return context.newPage();
+    }
+    const ctx = await this.newContext();
+    return ctx.newPage();
+  }
+
+  /**
+   * 拖拽操作 (dragAndDrop)
+   * @param socketName WebView socket
+   * @param sourceSelector 源元素选择器
+   * @param targetSelector 目标元素选择器
+   * @param options 选项
+   */
+  async dragAndDrop(
+    socketName: string,
+    sourceSelector: string,
+    targetSelector: string,
+    options: { timeout?: number } = {}
+  ): Promise<void> {
+    const timeout = options.timeout || 30000;
+    
+    // 获取源元素位置
+    const sourceBounds = await this.webViewEvaluate(socketName, `
+      (() => {
+        const el = document.querySelector('${sourceSelector.replace(/'/g, "\\'")}');
+        if (!el) return null;
+        const rect = el.getBoundingClientRect();
+        return { x: rect.left + rect.width/2, y: rect.top + rect.height/2 };
+      })()
+    `);
+
+    // 获取目标元素位置
+    const targetBounds = await this.webViewEvaluate(socketName, `
+      (() => {
+        const el = document.querySelector('${targetSelector.replace(/'/g, "\\'")}');
+        if (!el) return null;
+        const rect = el.getBoundingClientRect();
+        return { x: rect.left + rect.width/2, y: rect.top + rect.height/2 };
+      })()
+    `);
+
+    if (!sourceBounds || !targetBounds) {
+      throw new Error('Source or target element not found');
+    }
+
+    // 使用 JavaScript 模拟拖拽
+    await this.webViewEvaluate(socketName, `
+      (() => {
+        const source = document.querySelector('${sourceSelector.replace(/'/g, "\\'")}');
+        const target = document.querySelector('${targetSelector.replace(/'/g, "\\'")}');
+        if (!source || !target) return;
+        
+        // 创建 DataTransfer
+        const dataTransfer = {
+          data: {},
+          setData(type, val) { this.data[type] = val; },
+          getData(type) { return this.data[type]; },
+          effectAllowed: 'all',
+          dropEffect: 'move'
+        };
+        
+        // 触发拖拽事件
+        source.dispatchEvent(new DragEvent('dragstart', {
+          bubbles: true, cancelable: true,
+          clientX: ${sourceBounds.x}, clientY: ${sourceBounds.y},
+          dataTransfer
+        }));
+        
+        target.dispatchEvent(new DragEvent('dragover', {
+          bubbles: true, cancelable: true,
+          clientX: ${targetBounds.x}, clientY: ${targetBounds.y},
+          dataTransfer
+        }));
+        
+        target.dispatchEvent(new DragEvent('drop', {
+          bubbles: true, cancelable: true,
+          clientX: ${targetBounds.x}, clientY: ${targetBounds.y},
+          dataTransfer
+        }));
+        
+        source.dispatchEvent(new DragEvent('dragend', {
+          bubbles: true, cancelable: true,
+          clientX: ${sourceBounds.x}, clientY: ${sourceBounds.y},
+          dataTransfer
+        }));
+      })()
+    `);
   }
 }
 

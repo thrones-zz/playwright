@@ -656,3 +656,108 @@ export class ArkUIRecorder {
     return lines.join('\n');
   }
 }
+
+/**
+ * HarmonyOS Context (Client-side)
+ */
+export class HarmonyOSContext {
+  private _channel: any;
+  private _pages: HarmonyOSPage[] = [];
+
+  constructor(channel: any) {
+    this._channel = channel;
+  }
+
+  get pages(): HarmonyOSPage[] {
+    return [...this._pages];
+  }
+
+  async newPage(): Promise<HarmonyOSPage> {
+    const browser = await this._channel.launchBrowser({});
+    const page = new HarmonyOSPage(this._channel, browser.socketName);
+    this._pages.push(page);
+    return page;
+  }
+
+  async close(): Promise<void> {
+    for (const page of this._pages) {
+      await page.close();
+    }
+    this._pages = [];
+  }
+
+  async cookies(): Promise<any[]> {
+    return [];
+  }
+
+  async storageState(): Promise<any> {
+    return { cookies: [], storage: {} };
+  }
+}
+
+/**
+ * HarmonyOS Page (Client-side)
+ */
+export class HarmonyOSPage {
+  private _channel: any;
+  private _socketName: string;
+  private _url = '';
+
+  constructor(channel: any, socketName: string) {
+    this._channel = channel;
+    this._socketName = socketName;
+  }
+
+  get url(): string {
+    return this._url;
+  }
+
+  async goto(url: string): Promise<void> {
+    await this._channel.webViewNavigate({ socketName: this._socketName, url });
+    this._url = url;
+  }
+
+  async evaluate(expression: string): Promise<any> {
+    return await this._channel.webViewEvaluate({ socketName: this._socketName, expression });
+  }
+
+  async screenshot(): Promise<Buffer> {
+    const { binary } = await this._channel.webViewScreenshot({ socketName: this._socketName });
+    return binary;
+  }
+
+  async title(): Promise<string> {
+    return await this.evaluate('document.title');
+  }
+
+  async click(selector: string): Promise<void> {
+    await this.evaluate(`document.querySelector('${selector.replace(/'/g, "\\'")}')?.click()`);
+  }
+
+  async fill(selector: string, value: string): Promise<void> {
+    await this.evaluate(`(document.querySelector('${selector.replace(/'/g, "\\'")}') || {}).value = '${value.replace(/'/g, "\\'")}'`);
+  }
+
+  async dragAndDrop(source: string, target: string): Promise<void> {
+    await this._channel.dragAndDrop({
+      socketName: this._socketName,
+      sourceSelector: source,
+      targetSelector: target
+    });
+  }
+
+  async waitForLoad(state: 'load' | 'domcontentloaded' = 'load'): Promise<void> {
+    const timeout = 30000;
+    const start = Date.now();
+    while (Date.now() - start < timeout) {
+      const ready = await this.evaluate('document.readyState');
+      if (ready === 'complete') return;
+      await new Promise(r => setTimeout(r, 100));
+    }
+    throw new Error('Load timeout');
+  }
+
+  async close(): Promise<void> {
+    this._socketName = '';
+  }
+}
