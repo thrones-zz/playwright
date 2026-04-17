@@ -3154,3 +3154,8 @@ scheme.ArkUISelector = tObject({
   clickable: tOptional(tBoolean),
   enabled: tOptional(tBoolean),
 });
+scheme.HarmonyOSDeviceSendFileParams = tObject({
+  localPath: tString,
+  remotePath: tString,
+});
+scheme.HarmonyOSDeviceSendFileResult = tOptional(tObject({}));

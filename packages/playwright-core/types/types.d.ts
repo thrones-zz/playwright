@@ -16816,6 +16816,159 @@ export type AndroidKey =
 
 export const _electron: Electron;
 export const _android: Android;
+export const _harmonyos: HarmonyOS;
+
+/**
+ * - not поддерживает酿
+ *
+ * HarmonyOS class exposes methods to connect to existing HarmonyOS devices.
+ *
+ * ```js
+ * const { _harmonyos } = require('playwright');
+ *
+ * (async () => {
+ *   const devices = await _harmonyos.devices();
+ *   console.log('devices:', devices);
+ * })();
+ * ```
+ *
+ */
+export interface HarmonyOS {
+  /**
+   * Returns the list of detected HarmonyOS devices.
+   * @param options
+   */
+  devices(options?: {
+    host?: string;
+    port?: number;
+  }): Promise<Array<HarmonyOSDevice>>;
+
+}
+
+/**
+ * HarmonyOSDevice represents a connected HarmonyOS device.
+ */
+export interface HarmonyOSDevice {
+  on(event: 'close', listener: (device: HarmonyOSDevice) => any): this;
+  on(event: 'webview', listener: (webview: HarmonyOSWebView) => any): this;
+  once(event: 'close', listener: (device: HarmonyOSDevice) => any): this;
+  once(event: 'webview', listener: (webview: HarmonyOSWebView) => any): this;
+  off(event: 'close', listener: (device: HarmonyOSDevice) => any): this;
+  off(event: 'webview', listener: (webview: HarmonyOSWebView) => any): this;
+
+  /**
+   * Returns the device serial number.
+   */
+  serial(): string;
+  /**
+   * Returns the device model.
+   */
+  model(): string;
+  /**
+   * Returns the device OS version.
+   */
+  osVersion(): string;
+  /**
+   * Returns the list of webviews available on the device.
+   */
+  webViews(): HarmonyOSWebView[];
+  /**
+   * Captures a screenshot of the device screen.
+   */
+  screenshot(): Promise<Buffer>;
+  /**
+   * Executes a shell command on the device and returns the output.
+   */
+  shell(command: string): Promise<Buffer>;
+  /**
+   * Closes the connection to the device.
+   */
+  close(): Promise<void>;
+  /**
+   * Emitted when the device is disconnected.
+   */
+  on(event: 'close', listener: (harmonyOSDevice: HarmonyOSDevice) => any): this;
+
+  /**
+   * Emitted when a new webview is added.
+   */
+  on(event: 'webview', listener: (harmonyOSWebView: HarmonyOSWebView) => any): this;
+
+  /**
+   * Adds an event listener that will be automatically removed after it is triggered once. See `addListener` for more information about this event.
+   */
+  once(event: 'close', listener: (harmonyOSDevice: HarmonyOSDevice) => any): this;
+
+  /**
+   * Adds an event listener that will be automatically removed after it is triggered once. See `addListener` for more information about this event.
+   */
+  once(event: 'webview', listener: (harmonyOSWebView: HarmonyOSWebView) => any): this;
+
+  /**
+   * Emitted when the device is disconnected.
+   */
+  addListener(event: 'close', listener: (harmonyOSDevice: HarmonyOSDevice) => any): this;
+
+  /**
+   * Emitted when a new webview is added.
+   */
+  addListener(event: 'webview', listener: (harmonyOSWebView: HarmonyOSWebView) => any): this;
+
+  /**
+   * Removes an event listener added by `on` or `addListener`.
+   */
+  removeListener(event: 'close', listener: (harmonyOSDevice: HarmonyOSDevice) => any): this;
+
+  /**
+   * Removes an event listener added by `on` or `addListener`.
+   */
+  removeListener(event: 'webview', listener: (harmonyOSWebView: HarmonyOSWebView) => any): this;
+
+  /**
+   * Removes an event listener added by `on` or `addListener`.
+   */
+  off(event: 'close', listener: (harmonyOSDevice: HarmonyOSDevice) => any): this;
+
+  /**
+   * Removes an event listener added by `on` or `addListener`.
+   */
+  off(event: 'webview', listener: (harmonyOSWebView: HarmonyOSWebView) => any): this;
+
+  /**
+   * Emitted when the device is disconnected.
+   */
+  prependListener(event: 'close', listener: (harmonyOSDevice: HarmonyOSDevice) => any): this;
+
+  /**
+   * Emitted when a new webview is added.
+   */
+  prependListener(event: 'webview', listener: (harmonyOSWebView: HarmonyOSWebView) => any): this;
+
+
+}
+
+/**
+ * HarmonyOSWebView represents a webview on a HarmonyOS device.
+ */
+export interface HarmonyOSWebView {
+  /**
+   * Returns the socket name for connecting to DevTools.
+   */
+  socketName(): string;
+  /**
+   * Returns the package name of the webview.
+   */
+  package(): string;
+  /**
+   * Returns the title of the webview.
+   */
+  title(): string;
+  /**
+   * Returns the current URL of the webview.
+   */
+  url(): string;
+
+}
 
 // This is required to not export everything by default. See https://github.com/Microsoft/TypeScript/issues/19545#issuecomment-340490459
 export {};

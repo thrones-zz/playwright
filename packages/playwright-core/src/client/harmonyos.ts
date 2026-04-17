@@ -159,6 +159,38 @@ export class HarmonyOSDevice extends ChannelOwner<channels.HarmonyOSDeviceChanne
     return new ArkUIRecorder(this, options);
   }
 
+  /**
+   * 等待元素出现或消失
+   * @param selector 元素选择器
+   * @param options.wait 等待时间(毫秒)，默认 30000
+   * @param options.state 等待状态: 'attached' | 'visible' | 'detached' | 'hidden'
+   */
+  async waitFor(selector: ArkUISelector, options: { wait?: number; state?: 'attached' | 'visible' | 'detached' | 'hidden' } = {}): Promise<ArkUIElement | null> {
+    const timeout = options.wait || 30000;
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < timeout) {
+      const element = await this.findElement(selector);
+      if (element && (options.state === 'visible' || options.state === 'attached' || !options.state)) {
+        return element;
+      }
+      if (!element && (options.state === 'detached' || options.state === 'hidden')) {
+        return null;
+      }
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+    return null;
+  }
+
+  /**
+   * 发送本地文件到设备
+   * @param localPath 本地文件路径
+   * @param remotePath 设备目标路径
+   */
+  async sendFile(localPath: string, remotePath: string): Promise<void> {
+    await this._channel.sendFile({ localPath, remotePath });
+  }
+
   async close() {
     await this._channel.close();
   }
@@ -236,6 +268,38 @@ export class ArkUIElement {
    */
   async inputText(text: string): Promise<void> {
     await this._device.shell(`uinput -T "${text}"`);
+  }
+
+  /**
+   * 滚动元素视图
+   */
+  async scroll(direction: 'up' | 'down' | 'left' | 'right', percent: number = 80): Promise<void> {
+    const center = this._getCenter();
+    if (!this._node.bounds) throw new Error('Element has no bounds');
+    const distance = (Math.max(this._node.bounds.width, this._node.bounds.height) * percent) / 100;
+    let sx = center.x, sy = center.y, ex = center.x, ey = center.y;
+    switch (direction) {
+      case 'up': sy = center.y + distance / 2; ey = center.y - distance / 2; break;
+      case 'down': sy = center.y - distance / 2; ey = center.y + distance / 2; break;
+      case 'left': sx = center.x + distance / 2; ex = center.x - distance / 2; break;
+      case 'right': sx = center.x - distance / 2; ex = center.x + distance / 2; break;
+    }
+    await this._device.shell(`uinput -m ${Math.round(sx)} ${Math.round(sy)} ${Math.round(ex)} ${Math.round(ey)}`);
+  }
+
+  /**
+   * 从元素滑动到目标位置
+   */
+  async swipe(endX: number, endY: number, duration: number = 300): Promise<void> {
+    const start = this._getCenter();
+    await this._device.shell(`uinput -m ${Math.round(start.x)} ${Math.round(start.y)} ${Math.round(endX)} ${Math.round(endY)} ${duration}`);
+  }
+
+  /**
+   * 按键操作
+   */
+  async pressKey(key: string): Promise<void> {
+    await this._device.shell(`uinput -k ${key}`);
   }
 
   /**

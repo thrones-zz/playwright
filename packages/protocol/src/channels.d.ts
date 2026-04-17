@@ -26,6 +26,8 @@ export interface Channel {
 
 // ----------- Initializer Traits -----------
 export type InitializerTraits<T> =
+    T extends HarmonyOSDeviceChannel ? HarmonyOSDeviceInitializer :
+    T extends HarmonyOSChannel ? HarmonyOSInitializer :
     T extends JsonPipeChannel ? JsonPipeInitializer :
     T extends AndroidDeviceChannel ? AndroidDeviceInitializer :
     T extends AndroidSocketChannel ? AndroidSocketInitializer :
@@ -65,6 +67,8 @@ export type InitializerTraits<T> =
 
 // ----------- Event Traits -----------
 export type EventsTraits<T> =
+    T extends HarmonyOSDeviceChannel ? HarmonyOSDeviceEvents :
+    T extends HarmonyOSChannel ? HarmonyOSEvents :
     T extends JsonPipeChannel ? JsonPipeEvents :
     T extends AndroidDeviceChannel ? AndroidDeviceEvents :
     T extends AndroidSocketChannel ? AndroidSocketEvents :
@@ -104,6 +108,8 @@ export type EventsTraits<T> =
 
 // ----------- EventTarget Traits -----------
 export type EventTargetTraits<T> =
+    T extends HarmonyOSDeviceChannel ? HarmonyOSDeviceEventTarget :
+    T extends HarmonyOSChannel ? HarmonyOSEventTarget :
     T extends JsonPipeChannel ? JsonPipeEventTarget :
     T extends AndroidDeviceChannel ? AndroidDeviceEventTarget :
     T extends AndroidSocketChannel ? AndroidSocketEventTarget :
@@ -619,6 +625,7 @@ export type PlaywrightInitializer = {
   firefox: BrowserTypeChannel,
   webkit: BrowserTypeChannel,
   android: AndroidChannel,
+  harmonyos: HarmonyOSChannel,
   electron: ElectronChannel,
   utils?: LocalUtilsChannel,
   preLaunchedBrowser?: BrowserChannel,
@@ -5418,4 +5425,127 @@ export interface JsonPipeEvents {
   'message': JsonPipeMessageEvent;
   'closed': JsonPipeClosedEvent;
 }
+
+// ----------- HarmonyOS -----------
+export type HarmonyOSInitializer = {};
+export interface HarmonyOSEventTarget {
+}
+export interface HarmonyOSChannel extends HarmonyOSEventTarget, Channel {
+  _type_HarmonyOS: boolean;
+  devices(params: HarmonyOSDevicesParams, progress?: Progress): Promise<HarmonyOSDevicesResult>;
+}
+export type HarmonyOSDevicesParams = {
+  host?: string,
+  port?: number,
+};
+export type HarmonyOSDevicesOptions = {
+  host?: string,
+  port?: number,
+};
+export type HarmonyOSDevicesResult = {
+  devices: HarmonyOSDeviceChannel[],
+};
+
+export interface HarmonyOSEvents {
+}
+
+// ----------- HarmonyOSDevice -----------
+export type HarmonyOSDeviceInitializer = {
+  model: string,
+  serial: string,
+  osVersion: string,
+};
+export interface HarmonyOSDeviceEventTarget {
+  on(event: 'close', callback: (params: HarmonyOSDeviceCloseEvent) => void): this;
+  on(event: 'webViewAdded', callback: (params: HarmonyOSDeviceWebViewAddedEvent) => void): this;
+  on(event: 'webViewRemoved', callback: (params: HarmonyOSDeviceWebViewRemovedEvent) => void): this;
+}
+export interface HarmonyOSDeviceChannel extends HarmonyOSDeviceEventTarget, EventTargetChannel {
+  _type_HarmonyOSDevice: boolean;
+  screenshot(params?: HarmonyOSDeviceScreenshotParams, progress?: Progress): Promise<HarmonyOSDeviceScreenshotResult>;
+  shell(params: HarmonyOSDeviceShellParams, progress?: Progress): Promise<HarmonyOSDeviceShellResult>;
+  getPageSource(params?: HarmonyOSDeviceGetPageSourceParams, progress?: Progress): Promise<HarmonyOSDeviceGetPageSourceResult>;
+  findElement(params: HarmonyOSDeviceFindElementParams, progress?: Progress): Promise<HarmonyOSDeviceFindElementResult>;
+  findElements(params: HarmonyOSDeviceFindElementsParams, progress?: Progress): Promise<HarmonyOSDeviceFindElementsResult>;
+  close(params?: HarmonyOSDeviceCloseParams, progress?: Progress): Promise<HarmonyOSDeviceCloseResult>;
+}
+export type HarmonyOSDeviceCloseEvent = {};
+export type HarmonyOSDeviceWebViewAddedEvent = {
+  webView: HarmonyOSWebView,
+};
+export type HarmonyOSDeviceWebViewRemovedEvent = {
+  socketName: string,
+};
+export type HarmonyOSDeviceScreenshotParams = {};
+export type HarmonyOSDeviceScreenshotOptions = {};
+export type HarmonyOSDeviceScreenshotResult = {
+  binary: Binary,
+};
+export type HarmonyOSDeviceShellParams = {
+  command: string,
+};
+export type HarmonyOSDeviceShellOptions = {
+
+};
+export type HarmonyOSDeviceShellResult = {
+  result: Binary,
+};
+export type HarmonyOSDeviceGetPageSourceParams = {};
+export type HarmonyOSDeviceGetPageSourceOptions = {};
+export type HarmonyOSDeviceGetPageSourceResult = {
+  source: ArkUINode,
+};
+export type HarmonyOSDeviceFindElementParams = {
+  selector: ArkUISelector,
+};
+export type HarmonyOSDeviceFindElementOptions = {
+
+};
+export type HarmonyOSDeviceFindElementResult = {
+  element?: ArkUINode,
+};
+export type HarmonyOSDeviceFindElementsParams = {
+  selector: ArkUISelector,
+};
+export type HarmonyOSDeviceFindElementsOptions = {
+
+};
+export type HarmonyOSDeviceFindElementsResult = {
+  elements: ArkUINode[],
+};
+export type HarmonyOSDeviceCloseParams = {};
+export type HarmonyOSDeviceCloseOptions = {};
+export type HarmonyOSDeviceCloseResult = void;
+
+export interface HarmonyOSDeviceEvents {
+  'close': HarmonyOSDeviceCloseEvent;
+  'webViewAdded': HarmonyOSDeviceWebViewAddedEvent;
+  'webViewRemoved': HarmonyOSDeviceWebViewRemovedEvent;
+}
+
+export type HarmonyOSWebView = {
+  socketName: string,
+  package: string,
+  title: string,
+  url: string,
+};
+
+export type ArkUINode = {
+  id: string,
+  type: string,
+  text?: string,
+  resourceId?: string,
+  clickable?: boolean,
+  enabled?: boolean,
+  bounds?: Rect,
+  children?: ArkUINode[],
+};
+
+export type ArkUISelector = {
+  type?: string,
+  text?: string,
+  resourceId?: string,
+  clickable?: boolean,
+  enabled?: boolean,
+};
 

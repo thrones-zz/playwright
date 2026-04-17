@@ -82,6 +82,11 @@ export class HarmonyOSDeviceDispatcher extends Dispatcher<HarmonyOSDevice, chann
     };
   }
 
+  async sendFile(params: channels.HarmonyOSDeviceSendFileParams, progress: Progress): Promise<channels.HarmonyOSDeviceSendFileResult> {
+    await this._object.sendFile(params.localPath, params.remotePath);
+    return {};
+  }
+
   async close(params: channels.HarmonyOSDeviceCloseParams, progress: Progress): Promise<channels.HarmonyOSDeviceCloseResult> {
     await this._object.close(progress);
   }

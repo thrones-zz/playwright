@@ -506,6 +506,46 @@ class HdcDevice implements DeviceBackend {
       });
     });
   }
+
+  async sendFile(localPath: string, remotePath: string): Promise<void> {
+    if (this._closed)
+      throw new Error('Device is closed');
+
+    const fs = require('fs');
+    if (!fs.existsSync(localPath)) {
+      throw new Error(`Local file not found: ${localPath}`);
+    }
+
+    const fileSize = fs.statSync(localPath).size;
+
+    if (fileSize < 10 * 1024 * 1024) {
+      const buffer = fs.readFileSync(localPath);
+      const base64 = buffer.toString('base64');
+      await this.runCommand(`shell:echo -n "" > ${remotePath}`);
+      const chunkSize = 32 * 1024;
+      for (let i = 0; i < base64.length; i += chunkSize) {
+        const chunk = base64.slice(i, i + chunkSize);
+        const escaped = chunk.replace(/'/g, "'\\''");
+        await this.runCommand(`shell:echo -n '${escaped}' >> ${remotePath}.b64`);
+      }
+      await this.runCommand(`shell:cat ${remotePath}.b64 | base64 -d > ${remotePath}`);
+      await this.runCommand(`shell:rm ${remotePath}.b64`);
+    } else {
+      return new Promise((resolve, reject) => {
+        const socket = net.createConnection({ host: this._host, port: this._port }, () => {
+          socket.write(Buffer.from(`transport:${this.serial}\n`));
+          socket.write(Buffer.from(`file send ${localPath} ${remotePath}\n`));
+          socket.on('data', (data) => {
+            if (data.toString().includes('FileTransfer finish')) socket.end();
+          });
+          socket.on('end', () => { socket.destroy(); resolve(); });
+          socket.on('error', reject);
+        });
+        socket.on('error', reject);
+        socket.setTimeout(120000, () => { socket.destroy(); reject(new Error('File send timeout')); });
+      });
+    }
+  }
 }
 
 async function runHdcCommand(command: string, host: string, port: number, serial?: string): Promise<Buffer> {

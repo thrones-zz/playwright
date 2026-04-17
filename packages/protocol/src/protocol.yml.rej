@@ -1,0 +1,114 @@
+diff a/packages/protocol/src/protocol.yml b/packages/protocol/src/protocol.yml	(rejected hunks)
+@@ -4588,3 +4596,112 @@ JsonPipe:
+         reason: string?
+ 
+ 
++# ----------- HarmonyOS -----------
++HarmonyOS:
++  type: interface
++
++  commands:
++    devices:
++      internal: true
++      parameters:
++        host: string?
++        port: int?
++      returns:
++        devices:
++          type: array
++          items: HarmonyOSDevice
++
++
++HarmonyOSDevice:
++  type: interface
++
++  extends: EventTarget
++
++  initializer:
++    model: string
++    serial: string
++    osVersion: string
++
++  commands:
++    screenshot:
++      title: Screenshot
++      returns:
++        binary: binary
++
++    shell:
++      title: Shell
++      parameters:
++        command: string
++      returns:
++        result: binary
++
++    getPageSource:
++      title: Get Page Source
++      returns:
++        source: ArkUINode
++
++    findElement:
++      title: Find Element
++      parameters:
++        selector: ArkUISelector
++      returns:
++        element: ArkUINode?
++
++    findElements:
++      title: Find Elements
++      parameters:
++        selector: ArkUISelector
++      returns:
++        elements:
++          type: array
++          items: ArkUINode
++
++    close:
++      internal: true
++
++  events:
++    close:
++
++    webViewAdded:
++      parameters:
++        webView: HarmonyOSWebView
++
++    webViewRemoved:
++      parameters:
++        socketName: string
++
++
++HarmonyOSWebView:
++  type: object
++  properties:
++    socketName: string
++    package: string
++    title: string
++    url: string
++
++
++ArkUINode:
++  type: object
++  properties:
++    id: string
++    type: string
++    text: string?
++    resourceId: string?
++    clickable: boolean?
++    enabled: boolean?
++    bounds: Rect?
++    children:
++      type: array?
++      items: ArkUINode
++
++
++ArkUISelector:
++  type: object
++  properties:
++    type: string?
++    text: string?
++    resourceId: string?
++    clickable: boolean?
++    enabled: boolean?
++
++
