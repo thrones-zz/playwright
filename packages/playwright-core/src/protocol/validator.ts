@@ -3153,6 +3153,68 @@ scheme.HarmonyOSDeviceWebViewScreenshotParams = tObject({
 scheme.HarmonyOSDeviceWebViewScreenshotResult = tObject({
   binary: tBinary,
 });
+scheme.HarmonyOSDeviceLaunchBrowserParams = tObject({
+  headless: tOptional(tBoolean),
+  timeout: tOptional(tFloat),
+});
+scheme.HarmonyOSDeviceLaunchBrowserResult = tObject({
+  socketName: tString,
+  package: tString,
+});
+scheme.HarmonyOSDeviceRequestParams = tObject({
+  url: tString,
+  method: tOptional(tString),
+  headers: tOptional(tAny),
+  body: tOptional(tString),
+});
+scheme.HarmonyOSDeviceRequestResult = tObject({
+  status: tInt,
+  statusText: tString,
+  headers: tAny,
+  body: tBinary,
+});
+scheme.HarmonyOSDeviceGetParams = tObject({
+  url: tString,
+  headers: tOptional(tAny),
+});
+scheme.HarmonyOSDeviceGetResult = tObject({
+  status: tInt,
+  statusText: tString,
+  headers: tAny,
+  body: tBinary,
+});
+scheme.HarmonyOSDevicePostParams = tObject({
+  url: tString,
+  data: tOptional(tString),
+  headers: tOptional(tAny),
+});
+scheme.HarmonyOSDevicePostResult = tObject({
+  status: tInt,
+  statusText: tString,
+  headers: tAny,
+  body: tBinary,
+});
+scheme.HarmonyOSDevicePutParams = tObject({
+  url: tString,
+  data: tOptional(tString),
+  headers: tOptional(tAny),
+});
+scheme.HarmonyOSDevicePutResult = tObject({
+  status: tInt,
+  statusText: tString,
+  headers: tAny,
+  body: tBinary,
+});
+scheme.HarmonyOSDeviceDeleteParams = tObject({
+  url: tString,
+  headers: tOptional(tAny),
+});
+scheme.HarmonyOSDeviceDeleteResult = tObject({
+  status: tInt,
+  statusText: tString,
+  headers: tAny,
+  body: tBinary,
+});
 scheme.HarmonyOSDeviceCloseParams = tOptional(tObject({}));
 scheme.HarmonyOSDeviceCloseResult = tOptional(tObject({}));
 scheme.HarmonyOSWebView = tObject({
@@ -3177,4 +3239,14 @@ scheme.ArkUISelector = tObject({
   resourceId: tOptional(tString),
   clickable: tOptional(tBoolean),
   enabled: tOptional(tBoolean),
+});
+scheme.HarmonyOSBrowser = tObject({
+  socketName: tString,
+  package: tString,
+});
+scheme.HttpResponse = tObject({
+  status: tInt,
+  statusText: tString,
+  headers: tAny,
+  body: tBinary,
 });

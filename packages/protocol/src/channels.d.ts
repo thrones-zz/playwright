@@ -5471,6 +5471,12 @@ export interface HarmonyOSDeviceChannel extends HarmonyOSDeviceEventTarget, Even
   connectWebViewCDP(params: HarmonyOSDeviceConnectWebViewCDPParams, progress?: Progress): Promise<HarmonyOSDeviceConnectWebViewCDPResult>;
   webViewEvaluate(params: HarmonyOSDeviceWebViewEvaluateParams, progress?: Progress): Promise<HarmonyOSDeviceWebViewEvaluateResult>;
   webViewScreenshot(params: HarmonyOSDeviceWebViewScreenshotParams, progress?: Progress): Promise<HarmonyOSDeviceWebViewScreenshotResult>;
+  launchBrowser(params: HarmonyOSDeviceLaunchBrowserParams, progress?: Progress): Promise<HarmonyOSDeviceLaunchBrowserResult>;
+  request(params: HarmonyOSDeviceRequestParams, progress?: Progress): Promise<HarmonyOSDeviceRequestResult>;
+  get(params: HarmonyOSDeviceGetParams, progress?: Progress): Promise<HarmonyOSDeviceGetResult>;
+  post(params: HarmonyOSDevicePostParams, progress?: Progress): Promise<HarmonyOSDevicePostResult>;
+  put(params: HarmonyOSDevicePutParams, progress?: Progress): Promise<HarmonyOSDevicePutResult>;
+  delete(params: HarmonyOSDeviceDeleteParams, progress?: Progress): Promise<HarmonyOSDeviceDeleteResult>;
   close(params?: HarmonyOSDeviceCloseParams, progress?: Progress): Promise<HarmonyOSDeviceCloseResult>;
 }
 export type HarmonyOSDeviceCloseEvent = {};
@@ -5553,6 +5559,91 @@ export type HarmonyOSDeviceWebViewScreenshotOptions = {
 export type HarmonyOSDeviceWebViewScreenshotResult = {
   binary: Binary,
 };
+export type HarmonyOSDeviceLaunchBrowserParams = {
+  headless?: boolean,
+  timeout?: number,
+};
+export type HarmonyOSDeviceLaunchBrowserOptions = {
+  headless?: boolean,
+  timeout?: number,
+};
+export type HarmonyOSDeviceLaunchBrowserResult = {
+  socketName: string,
+  package: string,
+};
+export type HarmonyOSDeviceRequestParams = {
+  url: string,
+  method?: string,
+  headers?: any,
+  body?: string,
+};
+export type HarmonyOSDeviceRequestOptions = {
+  method?: string,
+  headers?: any,
+  body?: string,
+};
+export type HarmonyOSDeviceRequestResult = {
+  status: number,
+  statusText: string,
+  headers: any,
+  body: Binary,
+};
+export type HarmonyOSDeviceGetParams = {
+  url: string,
+  headers?: any,
+};
+export type HarmonyOSDeviceGetOptions = {
+  headers?: any,
+};
+export type HarmonyOSDeviceGetResult = {
+  status: number,
+  statusText: string,
+  headers: any,
+  body: Binary,
+};
+export type HarmonyOSDevicePostParams = {
+  url: string,
+  data?: string,
+  headers?: any,
+};
+export type HarmonyOSDevicePostOptions = {
+  data?: string,
+  headers?: any,
+};
+export type HarmonyOSDevicePostResult = {
+  status: number,
+  statusText: string,
+  headers: any,
+  body: Binary,
+};
+export type HarmonyOSDevicePutParams = {
+  url: string,
+  data?: string,
+  headers?: any,
+};
+export type HarmonyOSDevicePutOptions = {
+  data?: string,
+  headers?: any,
+};
+export type HarmonyOSDevicePutResult = {
+  status: number,
+  statusText: string,
+  headers: any,
+  body: Binary,
+};
+export type HarmonyOSDeviceDeleteParams = {
+  url: string,
+  headers?: any,
+};
+export type HarmonyOSDeviceDeleteOptions = {
+  headers?: any,
+};
+export type HarmonyOSDeviceDeleteResult = {
+  status: number,
+  statusText: string,
+  headers: any,
+  body: Binary,
+};
 export type HarmonyOSDeviceCloseParams = {};
 export type HarmonyOSDeviceCloseOptions = {};
 export type HarmonyOSDeviceCloseResult = void;
@@ -5587,5 +5678,17 @@ export type ArkUISelector = {
   resourceId?: string,
   clickable?: boolean,
   enabled?: boolean,
+};
+
+export type HarmonyOSBrowser = {
+  socketName: string,
+  package: string,
+};
+
+export type HttpResponse = {
+  status: number,
+  statusText: string,
+  headers: any,
+  body: Binary,
 };
 

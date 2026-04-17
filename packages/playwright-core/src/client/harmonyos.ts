@@ -343,6 +343,88 @@ export class HarmonyOSDevice extends ChannelOwner<channels.HarmonyOSDeviceChanne
     await this.webViewEvaluate(socketName, 'window.location.reload()');
   }
 
+  /**
+   * 启动海泰浏览器
+   * @param options 启动选项
+   */
+  async launchBrowser(options: {
+    headless?: boolean;
+    args?: string[];
+    timeout?: number;
+  } = {}): Promise<{
+    socketName: string;
+    package: string;
+  }> {
+    return await this._channel.launchBrowser(options);
+  }
+
+  /**
+   * HTTP GET 请求
+   * @param url 请求 URL
+   * @param headers 请求头
+   */
+  async httpGet(url: string, headers?: Record<string, string>): Promise<{
+    status: number;
+    body: string;
+    json: any;
+    raw: Buffer;
+  }> {
+    const result = await this._channel.get({ url, headers });
+    return {
+      status: result.status,
+      body: result.body.toString(),
+      json: JSON.parse(result.body.toString()),
+      raw: result.body,
+    };
+  }
+
+  /**
+   * HTTP POST 请求
+   * @param url 请求 URL
+   * @param data 请求数据
+   * @param headers 请求头
+   */
+  async httpPost(url: string, data?: string, headers?: Record<string, string>): Promise<{
+    status: number;
+    body: string;
+    json: any;
+    raw: Buffer;
+  }> {
+    const result = await this._channel.post({ url, data, headers });
+    return {
+      status: result.status,
+      body: result.body.toString(),
+      json: JSON.parse(result.body.toString()),
+      raw: result.body,
+    };
+  }
+
+  /**
+   * HTTP 请求 (通用)
+   * @param url 请求 URL
+   * @param options 请求选项
+   */
+  async httpRequest(url: string, options: {
+    method?: string;
+    headers?: Record<string, string>;
+    body?: string;
+  } = {}): Promise<{
+    status: number;
+    body: string;
+    json: any;
+    raw: Buffer;
+    headers: Record<string, string>;
+  }> {
+    const result = await this._channel.request({ url, ...options });
+    return {
+      status: result.status,
+      body: result.body.toString(),
+      json: JSON.parse(result.body.toString()),
+      raw: result.body,
+      headers: result.headers,
+    };
+  }
+
   async close() {
     await this._channel.close();
   }

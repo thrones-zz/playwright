@@ -351,6 +351,12 @@ export const methodMetainfo = new Map<string, MethodMetainfo>([
   ['HarmonyOSDevice.connectWebViewCDP', { title: 'Connect to WebView CDP', }],
   ['HarmonyOSDevice.webViewEvaluate', { title: 'Evaluate JavaScript in WebView', }],
   ['HarmonyOSDevice.webViewScreenshot', { title: 'Take WebView screenshot', }],
+  ['HarmonyOSDevice.launchBrowser', { title: 'Launch browser', }],
+  ['HarmonyOSDevice.request', { title: 'HTTP request', }],
+  ['HarmonyOSDevice.get', { title: 'GET request', }],
+  ['HarmonyOSDevice.post', { title: 'POST request', }],
+  ['HarmonyOSDevice.put', { title: 'PUT request', }],
+  ['HarmonyOSDevice.delete', { title: 'DELETE request', }],
   ['HarmonyOSDevice.close', { internal: true, }]
 ]);
 

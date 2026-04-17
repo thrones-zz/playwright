@@ -102,6 +102,43 @@ export class HarmonyOSDeviceDispatcher extends Dispatcher<HarmonyOSDevice, chann
     return { binary };
   }
 
+  async launchBrowser(params: channels.HarmonyOSDeviceLaunchBrowserParams, progress: Progress): Promise<channels.HarmonyOSDeviceLaunchBrowserResult> {
+    const browser = await this._object.launchBrowser({
+      headless: params.headless,
+      timeout: params.timeout,
+    });
+    return { socketName: browser.socketName, package: 'com.hitakashi.browser' };
+  }
+
+  async request(params: channels.HarmonyOSDeviceRequestParams, progress: Progress): Promise<channels.HarmonyOSDeviceRequestResult> {
+    const result = await (this._object as any).httpRequest(params.url, {
+      method: params.method,
+      headers: params.headers,
+      body: params.body,
+    });
+    return { status: result.status, statusText: result.statusText, headers: result.headers, body: result.body };
+  }
+
+  async get(params: channels.HarmonyOSDeviceGetParams, progress: Progress): Promise<channels.HarmonyOSDeviceGetResult> {
+    const result = await (this._object as any).get(params.url, params.headers);
+    return { status: result.status, statusText: result.statusText, headers: result.headers, body: result.body };
+  }
+
+  async post(params: channels.HarmonyOSDevicePostParams, progress: Progress): Promise<channels.HarmonyOSDevicePostResult> {
+    const result = await (this._object as any).post(params.url, params.data, params.headers);
+    return { status: result.status, statusText: result.statusText, headers: result.headers, body: result.body };
+  }
+
+  async put(params: channels.HarmonyOSDevicePutParams, progress: Progress): Promise<channels.HarmonyOSDevicePutResult> {
+    const result = await (this._object as any).put(params.url, params.data, params.headers);
+    return { status: result.status, statusText: result.statusText, headers: result.headers, body: result.body };
+  }
+
+  async delete(params: channels.HarmonyOSDeviceDeleteParams, progress: Progress): Promise<channels.HarmonyOSDeviceDeleteResult> {
+    const result = await (this._object as any).delete(params.url, params.headers);
+    return { status: result.status, statusText: result.statusText, headers: result.headers, body: result.body };
+  }
+
   async close(params: channels.HarmonyOSDeviceCloseParams, progress: Progress): Promise<channels.HarmonyOSDeviceCloseResult> {
     await this._object.close(progress);
   }

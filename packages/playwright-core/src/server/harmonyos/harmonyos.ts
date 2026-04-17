@@ -555,6 +555,250 @@ export class HarmonyOSDevice extends SdkObject {
     this._webViews.delete(socketName);
     this.emit(HarmonyOSDevice.Events.WebViewRemoved, { socketName });
   }
+
+  /**
+   * 启动海泰浏览器
+   * @param options 启动选项
+   * @returns 浏览器实例
+   */
+  async launchBrowser(options: {
+    headless?: boolean;
+    args?: string[];
+    timeout?: number;
+  } = {}): Promise<{
+    socketName: string;
+    navigate: (url: string) => Promise<void>;
+    evaluate: (expr: string) => Promise<any>;
+    screenshot: () => Promise<Buffer>;
+    close: () => Promise<void>;
+  }> {
+    const packageName = 'com.hitakashi.browser';
+    const timeout = options.timeout || 30000;
+    
+    // 1. 停止已存在的浏览器
+    try {
+      await this._backend.runCommand(`shell:am force-stop ${packageName}`);
+    } catch (e) {}
+    
+    // 2. 启动浏览器
+    await this._backend.runCommand(`shell:am start -n ${packageName}/.MainAbility`);
+    
+    // 3. 等待 DevTools socket
+    const socketName = await this._waitForDevToolsSocket(packageName, timeout);
+    
+    // 4. 连接 WebView
+    const socket = await this._backend.open(`localabstract:${socketName}`);
+    
+    // WebSocket 握手
+    const handshake = [
+      'GET /devtools/browser HTTP/1.1',
+      'Upgrade: WebSocket',
+      'Connection: Upgrade',
+      'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==',
+      'Sec-WebSocket-Version: 13',
+      '', ''
+    ].join('\r\n');
+    
+    await socket.write(Buffer.from(handshake));
+    
+    await new Promise<void>((resolve, reject) => {
+      const t = setTimeout(() => reject(new Error('Handshake timeout')), 10000);
+      socket.on('data', (data: Buffer) => {
+        if (data.toString().includes('101')) {
+          clearTimeout(t);
+          resolve();
+        }
+      });
+      socket.on('error', reject);
+    });
+    
+    const client = new WebViewCDPClient(socket);
+    
+    // 获取 page target
+    const { targetInfos } = await client.send('Target.getTargets');
+    const pageTarget = targetInfos.find((t: any) => t.type === 'page' || t.type === 'webview');
+    
+    if (!pageTarget) {
+      throw new Error('No page target found');
+    }
+    
+    const { sessionId } = await client.send('Target.attachToTarget', {
+      targetId: pageTarget.targetId,
+      flatten: true,
+    });
+    
+    return {
+      socketName,
+      navigate: async (targetUrl: string) => {
+        await client.send('Page.navigate', { url: targetUrl });
+      },
+      evaluate: async (expr: string) => {
+        const result = await client.send('Runtime.evaluate', {
+          expression: expr,
+          returnByValue: true,
+        });
+        return result.result?.value;
+      },
+      screenshot: async () => {
+        const { data } = await client.send('Page.captureScreenshot', {});
+        return Buffer.from(data, 'base64');
+      },
+      close: async () => {
+        try {
+          await this._backend.runCommand(`shell:am force-stop ${packageName}`);
+        } catch (e) {}
+        client.close();
+      },
+    };
+  }
+
+  private async _waitForDevToolsSocket(packageName: string, timeout: number): Promise<string> {
+    const patterns = ['webview_devtools_remote', 'arkweb_devtools_remote', 'ohos_webview_devtools'];
+    const start = Date.now();
+    
+    while (Date.now() - start < timeout) {
+      try {
+        const result = await this._backend.runCommand(`shell:cat /proc/net/unix | grep ${packageName.replace('.', '_')}`);
+        const lines = result.toString().split('\n').filter(l => l.includes('webview'));
+        
+        for (const line of lines) {
+          for (const pattern of patterns) {
+            const match = line.match(new RegExp(`@(.+${pattern}_\\S+)`));
+            if (match) return match[1];
+          }
+        }
+      } catch (e) {}
+      await new Promise(r => setTimeout(r, 500));
+    }
+    
+    throw new Error('Browser DevTools socket not found');
+  }
+
+  /**
+   * HTTP 请求 (实现 request() API)
+   */
+  async request(url: string, options: {
+    method?: string;
+    headers?: Record<string, string>;
+    body?: string;
+  } = {}): Promise<{
+    status: number;
+    statusText: string;
+    headers: Record<string, string>;
+    body: Buffer;
+    text: () => string;
+    json: () => any;
+  }> {
+    const method = options.method || 'GET';
+    const headers = options.headers || {};
+    
+    return new Promise((resolve, reject) => {
+      const parsedUrl = new URL(url);
+      const isHttps = parsedUrl.protocol === 'https:';
+      const httpModule = isHttps ? https : http;
+      
+      const reqOptions: http.RequestOptions = {
+        hostname: parsedUrl.hostname,
+        port: parsedUrl.port ? parseInt(parsedUrl.port) : (isHttps ? 443 : 80),
+        path: parsedUrl.pathname + parsedUrl.search,
+        method,
+        headers,
+      };
+      
+      const req = httpModule.request(reqOptions, (res) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (chunk: Buffer) => chunks.push(chunk));
+        res.on('end', () => {
+          const body = Buffer.concat(chunks);
+          const resHeaders: Record<string, string> = {};
+          Object.entries(res.headers).forEach(([k, v]) => {
+            resHeaders[k] = Array.isArray(v) ? v.join(', ') : (v || '');
+          });
+          resolve({
+            status: res.statusCode || 0,
+            statusText: res.statusMessage || '',
+            headers: resHeaders,
+            body,
+            text: () => body.toString('utf8'),
+            json: () => JSON.parse(body.toString('utf8')),
+          });
+        });
+      });
+      
+      req.on('error', reject);
+      req.setTimeout(30000, () => {
+        req.destroy();
+        reject(new Error('Request timeout'));
+      });
+      
+      if (options.body) req.write(options.body);
+      req.end();
+    });
+  }
+
+  /**
+   * GET 请求
+   */
+  async get(url: string, headers?: Record<string, string>): Promise<{
+    status: number;
+    statusText: string;
+    headers: Record<string, string>;
+    body: Buffer;
+    text: () => string;
+    json: () => any;
+  }> {
+    return this.request(url, { method: 'GET', headers });
+  }
+
+  /**
+   * POST 请求
+   */
+  async post(url: string, body?: string, headers?: Record<string, string>): Promise<{
+    status: number;
+    statusText: string;
+    headers: Record<string, string>;
+    body: Buffer;
+    text: () => string;
+    json: () => any;
+  }> {
+    return this.request(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...headers },
+      body,
+    });
+  }
+
+  /**
+   * PUT 请求
+   */
+  async put(url: string, body?: string, headers?: Record<string, string>): Promise<{
+    status: number;
+    statusText: string;
+    headers: Record<string, string>;
+    body: Buffer;
+    text: () => string;
+    json: () => any;
+  }> {
+    return this.request(url, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...headers },
+      body,
+    });
+  }
+
+  /**
+   * DELETE 请求
+   */
+  async delete(url: string, headers?: Record<string, string>): Promise<{
+    status: number;
+    statusText: string;
+    headers: Record<string, string>;
+    body: Buffer;
+    text: () => string;
+    json: () => any;
+  }> {
+    return this.request(url, { method: 'DELETE', headers });
+  }
 }
 
 // HDC Backend Implementation

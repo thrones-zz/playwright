@@ -4711,6 +4711,74 @@ HarmonyOSDevice:
       returns:
         binary: binary
 
+    launchBrowser:
+      title: Launch browser
+      parameters:
+        headless: boolean?
+        timeout: float?
+      returns:
+        socketName: string
+        package: string
+
+    request:
+      title: HTTP request
+      parameters:
+        url: string
+        method: string?
+        headers: json?
+        body: string?
+      returns:
+        status: int
+        statusText: string
+        headers: json
+        body: binary
+
+    get:
+      title: GET request
+      parameters:
+        url: string
+        headers: json?
+      returns:
+        status: int
+        statusText: string
+        headers: json
+        body: binary
+
+    post:
+      title: POST request
+      parameters:
+        url: string
+        data: string?
+        headers: json?
+      returns:
+        status: int
+        statusText: string
+        headers: json
+        body: binary
+
+    put:
+      title: PUT request
+      parameters:
+        url: string
+        data: string?
+        headers: json?
+      returns:
+        status: int
+        statusText: string
+        headers: json
+        body: binary
+
+    delete:
+      title: DELETE request
+      parameters:
+        url: string
+        headers: json?
+      returns:
+        status: int
+        statusText: string
+        headers: json
+        body: binary
+
     close:
       internal: true
 
@@ -4756,3 +4824,19 @@ ArkUISelector:
     resourceId: string?
     clickable: boolean?
     enabled: boolean?
+
+# Browser Launch Support
+HarmonyOSBrowser:
+  type: object
+  properties:
+    socketName: string
+    package: string
+
+# HTTP Request Support
+HttpResponse:
+  type: object
+  properties:
+    status: int
+    statusText: string
+    headers: json
+    body: binary
