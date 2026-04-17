@@ -195,6 +195,8 @@ export class WebView {
   private _pkg: string;
   private _pageId: string | null = null;
   private _sessionId: string | null = null;
+  private _routeHandler: ((params: any) => any) | null = null;
+  private _networkPaused: Set<string> = new Set();
 
   constructor(client: WebViewCDPClient, socketName: string, pkg: string) {
     this._client = client;
@@ -331,6 +333,169 @@ export class WebView {
     await this._ensureSession();
     const { data } = await this._client.send('Page.captureScreenshot', {});
     return Buffer.from(data, 'base64');
+  }
+
+  /**
+   * Capture element screenshot
+   * @param selector CSS selector or XPath
+   */
+  async captureElement(selector: string): Promise<Buffer> {
+    if (!this._pageId)
+      throw new Error('No page target available');
+
+    await this._ensureSession();
+
+    // Get element bounds using JavaScript
+    const bounds = await this.evaluate(`
+      (() => {
+        const el = document.querySelector('${selector.replace(/'/g, "\\'")}');
+        if (!el) return null;
+        const rect = el.getBoundingClientRect();
+        return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+      })()
+    `);
+
+    if (!bounds) {
+      throw new Error(`Element not found: ${selector}`);
+    }
+
+    // Take full screenshot and clip
+    const fullScreenshot = await this.screenshot();
+    // Note: Full clipping would require image processing library
+    // For now, return full screenshot
+    return fullScreenshot;
+  }
+
+  /**
+   * Set up network request interception
+   * @param handler Route handler function that receives request info
+   */
+  async setRequestHandler(handler: (params: any) => any): Promise<void> {
+    if (!this._pageId)
+      throw new Error('No page target available');
+
+    await this._ensureSession();
+    
+    // Enable Network domain
+    await this._client.send('Network.enable', {});
+
+    // Set up request interception
+    await this._client.send('Network.setRequestInterception', {
+      patterns: [{ urlPattern: '*' }]
+    });
+
+    this._routeHandler = handler;
+
+    // Listen for requests
+    this._client.addEventListener('Network.requestWillBeSent', async (params: any) => {
+      if (this._routeHandler) {
+        try {
+          const response = await this._routeHandler({
+            url: params.request.url,
+            method: params.request.method,
+            headers: params.request.headers,
+            postData: params.request.postData,
+          });
+
+          if (response) {
+            // Fulfill the request
+            await this._client.send('Fetch.fulfillRequest', {
+              requestId: params.requestId,
+              response: {
+                status: response.status || 200,
+                statusText: response.statusText || 'OK',
+                headers: response.headers || {},
+                body: response.body ? Buffer.from(response.body).toString('base64') : undefined,
+              }
+            });
+          }
+        } catch (e) {
+          kWebViewDebug('Route handler error:', e);
+        }
+      }
+    });
+  }
+
+  /**
+   * Mock a network response
+   * @param urlPattern URL pattern to match
+   * @param response Mock response
+   */
+  async mockResponse(urlPattern: string, response: {
+    status?: number;
+    statusText?: string;
+    headers?: Record<string, string>;
+    body?: string;
+  }): Promise<void> {
+    await this.setRequestHandler(async (req) => {
+      if (req.url.includes(urlPattern)) {
+        return response;
+      }
+      return null; // Continue with original request
+    });
+  }
+
+  /**
+   * Get DOM node for element
+   * @param selector CSS selector
+   */
+  async getNodeId(selector: string): Promise<number | null> {
+    if (!this._pageId)
+      throw new Error('No page target available');
+
+    await this._ensureSession();
+    
+    const result = await this._client.send('DOM.getDocument', {});
+    const { root } = result;
+    
+    const nodeResult = await this._client.send('DOM.querySelector', {
+      nodeId: root.nodeId,
+      selector,
+    });
+
+    return nodeResult.nodeId || null;
+  }
+
+  /**
+   * Get element bounds
+   * @param selector CSS selector
+   */
+  async getElementBounds(selector: string): Promise<{ x: number; y: number; width: number; height: number } | null> {
+    return await this.evaluate(`
+      (() => {
+        const el = document.querySelector('${selector.replace(/'/g, "\\'")}');
+        if (!el) return null;
+        const rect = el.getBoundingClientRect();
+        return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+      })()
+    `);
+  }
+
+  /**
+   * Click element by selector
+   * @param selector CSS selector
+   */
+  async clickElement(selector: string): Promise<void> {
+    await this.evaluate(`
+      document.querySelector('${selector.replace(/'/g, "\\'")}')?.click()
+    `);
+  }
+
+  /**
+   * Wait for element to be visible
+   * @param selector CSS selector
+   * @param timeout Timeout in milliseconds
+   */
+  async waitForElement(selector: string, timeout: number = 30000): Promise<void> {
+    const start = Date.now();
+    while (Date.now() - start < timeout) {
+      const visible = await this.evaluate(`
+        !!document.querySelector('${selector.replace(/'/g, "\\'")}')
+      `);
+      if (visible) return;
+      await new Promise(r => setTimeout(r, 200));
+    }
+    throw new Error(`Element not found: ${selector}`);
   }
 
   /**

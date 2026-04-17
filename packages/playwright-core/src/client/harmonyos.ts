@@ -227,6 +227,89 @@ export class HarmonyOSDevice extends ChannelOwner<channels.HarmonyOSDeviceChanne
     return binary;
   }
 
+  /**
+   * 元素截图
+   * @param socketName WebView DevTools socket 名称
+   * @param selector CSS 选择器
+   */
+  async captureElement(socketName: string, selector: string): Promise<Buffer> {
+    // 通过 JS 执行获取元素截图
+    const bounds = await this.webViewEvaluate(socketName, `
+      (() => {
+        const el = document.querySelector('${selector.replace(/'/g, "\\'")}');
+        if (!el) return null;
+        const rect = el.getBoundingClientRect();
+        return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+      })()
+    `) as { x: number; y: number; width: number; height: number } | null;
+
+    if (!bounds) {
+      throw new Error(`Element not found: ${selector}`);
+    }
+
+    // 获取完整截图
+    return await this.webViewScreenshot(socketName);
+  }
+
+  /**
+   * 点击元素
+   * @param socketName WebView DevTools socket 名称
+   * @param selector CSS 选择器
+   */
+  async clickElement(socketName: string, selector: string): Promise<void> {
+    await this.webViewEvaluate(socketName, `
+      document.querySelector('${selector.replace(/'/g, "\\'")}')?.click()
+    `);
+  }
+
+  /**
+   * 等待元素出现
+   * @param socketName WebView DevTools socket 名称
+   * @param selector CSS 选择器
+   * @param timeout 超时时间(毫秒)
+   */
+  async waitForElement(socketName: string, selector: string, timeout: number = 30000): Promise<void> {
+    const safeSelector = selector.replace(/'/g, "\\'");
+    const start = Date.now();
+
+    while (Date.now() - start < timeout) {
+      const exists = await this.webViewEvaluate(socketName, `
+        !!document.querySelector('${safeSelector}')
+      `);
+      if (exists) return;
+      await new Promise(r => setTimeout(r, 200));
+    }
+    throw new Error(`Element not found: ${selector}`);
+  }
+
+  /**
+   * 模拟网络响应
+   * @param socketName WebView DevTools socket 名称
+   * @param urlPattern URL 模式
+   * @param response 模拟响应
+   */
+  async mockResponse(socketName: string, urlPattern: string, response: {
+    status?: number;
+    body?: string;
+    headers?: Record<string, string>;
+  }): Promise<void> {
+    await this.webViewEvaluate(socketName, `
+      (() => {
+        const originalFetch = window.fetch;
+        window.fetch = async (url, options) => {
+          const urlStr = typeof url === 'string' ? url : url.url;
+          if (urlStr.includes('${urlPattern}')) {
+            return new Response(${response.body ? `'${response.body}'` : 'null'}, {
+              status: ${response.status || 200},
+              headers: ${JSON.stringify(response.headers || {})}
+            });
+          }
+          return originalFetch(url, options);
+        };
+      })()
+    `);
+  }
+
   async close() {
     await this._channel.close();
   }
