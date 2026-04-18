@@ -160,6 +160,111 @@ export class HarmonyOSDevice extends ChannelOwner<channels.HarmonyOSDeviceChanne
   }
 
   /**
+   * 创建定位器 - Playwright 风格的元素定位
+   * @param selector 基础选择器（可以是组件类型如 'Button' 或 'Text'）
+   * @returns ArkUILocator 实例，支持链式调用
+   *
+   * @example
+   * // 基础用法
+   * await device.locator('Button').first().click();
+   *
+   * // 链式调用
+   * await device.locator('Button').getByText('提交').click();
+   *
+   * // 按角色定位
+   * await device.locator().getByRole('button', { name: '确认' }).click();
+   *
+   * // 过滤
+   * const buttons = await device.locator('Button').filter({ hasText: '取消' }).all();
+   */
+  locator(selector?: string | ArkUISelector): ArkUILocator {
+    const sel: ArkUISelector = typeof selector === 'string'
+      ? { type: selector }
+      : (selector || {});
+    return new ArkUILocator(this, sel);
+  }
+
+  /**
+   * 通过文本内容定位元素
+   * @param text 要匹配的文本（支持正则表达式或字符串）
+   * @param options { exact?: boolean } 是否精确匹配
+   * @returns ArkUILocator 实例
+   *
+   * @example
+   * await device.getByText('确定').click();
+   * await device.getByText(/^取消$/).click(); // 精确匹配
+   * await device.getByText('提交', { exact: false }).click();
+   */
+  getByText(text: string | RegExp, options: { exact?: boolean } = {}): ArkUILocator {
+    const selector: ArkUISelector = {
+      text: options.exact ? new RegExp(`^${text}$`) : (text instanceof RegExp ? text : new RegExp(text, 'i'))
+    };
+    return new ArkUILocator(this, selector);
+  }
+
+  /**
+   * 通过 ARIA 角色定位元素
+   * @param role ARIA 角色 (button, checkbox, radio, textbox, switch, link, menuitem 等)
+   * @param options { name?: string | RegExp, exact?: boolean } 角色名称和匹配选项
+   * @returns ArkUILocator 实例
+   *
+   * @example
+   * await device.getByRole('button', { name: '提交' }).click();
+   * await device.getByRole('checkbox').nth(0).click();
+   * await device.getByRole('link', { name: '了解更多' }).click();
+   */
+  getByRole(role: string, options: { name?: string | RegExp; exact?: boolean } = {}): ArkUILocator {
+    // ARIA 角色到 ArkUI 组件类型的映射
+    const roleToType: Record<string, string> = {
+      'button': 'Button',
+      'checkbox': 'Checkbox',
+      'radio': 'Radio',
+      'radiobutton': 'Radio',
+      'textbox': 'TextInput',
+      'searchbox': 'Search',
+      'search': 'Search',
+      'switch': 'Toggle',
+      'toggle': 'Toggle',
+      'tab': 'Tabs',
+      'tablist': 'TabContent',
+      'menuitem': 'MenuItem',
+      'menu': 'Menu',
+      'link': 'NavigationButton',
+      'navigation': 'Navigation',
+      'dialog': 'Dialog',
+      'alertdialog': 'AlertDialog',
+      'listbox': 'ListContainer',
+      'option': 'ListItem',
+      'listitem': 'ListItem',
+      'img': 'Image',
+      'image': 'Image',
+      'heading': 'Text',
+      'label': 'Text',
+      'slider': 'Slider',
+      'progressbar': 'Progress',
+      'progress': 'Progress',
+      'text': 'Text',
+      'textarea': 'TextArea',
+      'richeditor': 'RichEditor',
+    };
+
+    const normalizedRole = role.toLowerCase();
+    const selector: ArkUISelector = {};
+
+    if (roleToType[normalizedRole]) {
+      selector.type = roleToType[normalizedRole];
+    }
+
+    if (options.name) {
+      selector.text = options.exact
+        ? new RegExp(`^${options.name}$`)
+        : (options.name instanceof RegExp ? options.name : new RegExp(String(options.name), 'i'));
+    }
+
+    return new ArkUILocator(this, selector);
+  }
+
+  /**
    * 等待元素出现或消失
    * @param selector 元素选择器
    * @param options.wait 等待时间(毫秒)，默认 30000
@@ -498,6 +603,16 @@ export class ArkUIElement {
   }
 
   /**
+   * 双击元素
+   */
+  async dblclick(): Promise<void> {
+    const center = this._getCenter();
+    await this._device.shell(`uinput -c ${Math.round(center.x)} ${Math.round(center.y)}`);
+    await new Promise(r => setTimeout(r, 100));
+    await this._device.shell(`uinput -c ${Math.round(center.x)} ${Math.round(center.y)}`);
+  }
+
+  /**
    * 输入文本到元素
    */
   async inputText(text: string): Promise<void> {
@@ -565,6 +680,409 @@ function toSelectorChannel(selector: ArkUISelector): channels.ArkUISelector {
     clickable: selector.clickable,
     enabled: selector.enabled,
   };
+}
+
+/**
+ * ArkUI Locator - Playwright 风格的定位器 API
+ * 支持链式调用: locator('Button').getByText('提交').click()
+ */
+export class ArkUILocator {
+  private _device: HarmonyOSDevice;
+  private _selector: ArkUISelector;
+  private _filterStack: ArkUISelector[] = [];
+
+  constructor(device: HarmonyOSDevice, selector: ArkUISelector) {
+    this._device = device;
+    this._selector = selector;
+  }
+
+  /**
+   * 获取当前选择器
+   */
+  _getSelector(): ArkUISelector {
+    return { ...this._selector };
+  }
+
+  /**
+   * 获取累积的选择器（应用于所有 filter）
+   */
+  _getComposedSelector(): ArkUISelector[] {
+    return [this._selector, ...this._filterStack];
+  }
+
+  /**
+   * 通过文本内容过滤定位器
+   * @param text 要匹配的文本（支持正则表达式或字符串）
+   * @param options 选项 { exact: boolean }
+   */
+  getByText(text: string | RegExp, options: { exact?: boolean } = {}): ArkUILocator {
+    const newLocator = new ArkUILocator(this._device, this._getSelector());
+    newLocator._filterStack = [...this._filterStack];
+    newLocator._filterStack.push({
+      text: options.exact ? new RegExp(`^${text}$`) : (text instanceof RegExp ? text : new RegExp(text, 'i'))
+    } as ArkUISelector);
+    return newLocator;
+  }
+
+  /**
+   * 通过 ARIA 角色过滤定位器
+   * @param role ARIA 角色
+   * @param options 选项 { name?: string | RegExp, exact?: boolean }
+   */
+  getByRole(role: string, options: { name?: string | RegExp; exact?: boolean } = {}): ArkUILocator {
+    const newLocator = new ArkUILocator(this._device, this._getSelector());
+    newLocator._filterStack = [...this._filterStack];
+
+    // ARIA 角色到 ArkUI 组件类型的映射
+    const roleToType: Record<string, string> = {
+      'button': 'Button',
+      'checkbox': 'Checkbox',
+      'radio': 'Radio',
+      'textbox': 'TextInput',
+      'searchbox': 'Search',
+      'switch': 'Toggle',
+      'tab': 'Tabs',
+      'tablist': 'TabContent',
+      'menuitem': 'MenuItem',
+      'link': 'NavigationButton',
+      'dialog': 'Dialog',
+      'alertdialog': 'AlertDialog',
+      'menu': 'Menu',
+      'listbox': 'ListContainer',
+      'option': 'ListItem',
+      'img': 'Image',
+      'heading': 'Text',
+      'label': 'Text',
+      'slider': 'Slider',
+      'progressbar': 'Progress',
+    };
+
+    const selector: ArkUISelector = {};
+    if (roleToType[role.toLowerCase()]) {
+      selector.type = roleToType[role.toLowerCase()];
+    }
+
+    // 如果有 name 选项，通过文本匹配
+    if (options.name) {
+      selector.text = options.exact
+        ? new RegExp(`^${options.name}$`)
+        : (options.name instanceof RegExp ? options.name : new RegExp(options.name, 'i'));
+    }
+
+    newLocator._filterStack.push(selector);
+    return newLocator;
+  }
+
+  /**
+   * 通过占位符文本过滤定位器
+   */
+  getByPlaceholder(placeholder: string | RegExp, options: { exact?: boolean } = {}): ArkUILocator {
+    return this.getByText(placeholder, options);
+  }
+
+  /**
+   * 通过标签文本过滤定位器
+   */
+  getByLabel(label: string | RegExp, options: { exact?: boolean } = {}): ArkUILocator {
+    return this.getByText(label, options);
+  }
+
+  /**
+   * 通过 accessibilityId 过滤定位器
+   */
+  getByAccessibilityId(accessibilityId: string): ArkUILocator {
+    const newLocator = new ArkUILocator(this._device, this._getSelector());
+    newLocator._filterStack = [...this._filterStack];
+    newLocator._filterStack.push({ accessibilityId });
+    return newLocator;
+  }
+
+  /**
+   * 进一步过滤定位器
+   */
+  filter(options: { hasText?: string | RegExp; has?: ArkUISelector }): ArkUILocator {
+    const newLocator = new ArkUILocator(this._device, this._getSelector());
+    newLocator._filterStack = [...this._filterStack];
+
+    if (options.hasText) {
+      newLocator._filterStack.push({
+        text: options.hasText instanceof RegExp ? options.hasText : new RegExp(options.hasText, 'i')
+      } as ArkUISelector);
+    }
+
+    if (options.has) {
+      newLocator._filterStack.push(options.has);
+    }
+
+    return newLocator;
+  }
+
+  /**
+   * 获取第一个匹配的元素
+   */
+  async first(): Promise<ArkUIElement | null> {
+    const elements = await this.all();
+    return elements.length > 0 ? elements[0] : null;
+  }
+
+  /**
+   * 获取最后一个匹配的元素
+   */
+  async last(): Promise<ArkUIElement | null> {
+    const elements = await this.all();
+    return elements.length > 0 ? elements[elements.length - 1] : null;
+  }
+
+  /**
+   * 获取第 N 个匹配的元素（从 0 开始）
+   */
+  async nth(index: number): Promise<ArkUIElement | null> {
+    const elements = await this.all();
+    return index >= 0 && index < elements.length ? elements[index] : null;
+  }
+
+  /**
+   * 获取所有匹配的元素
+   */
+  async all(): Promise<ArkUIElement[]> {
+    const selectors = this._getComposedSelector();
+
+    // 如果只有一个选择器，直接查询
+    if (selectors.length === 1) {
+      return await this._device.findElements(selectors[0]);
+    }
+
+    // 多重过滤：先按第一个选择器查询，再逐个过滤
+    let elements = await this._device.findElements(selectors[0]);
+
+    // 逐个应用后续选择器过滤
+    for (let i = 1; i < selectors.length; i++) {
+      const filterSelector = selectors[i];
+      elements = elements.filter(el => {
+        if (filterSelector.text) {
+          const text = el.text || '';
+          if (filterSelector.text instanceof RegExp) {
+            if (!filterSelector.text.test(text)) return false;
+          } else if (typeof filterSelector.text === 'string') {
+            if (!text.toLowerCase().includes(filterSelector.text.toLowerCase())) return false;
+          }
+        }
+        if (filterSelector.accessibilityId) {
+          if (el.id !== filterSelector.accessibilityId) return false;
+        }
+        return true;
+      });
+    }
+
+    return elements;
+  }
+
+  /**
+   * 计算匹配元素的数量
+   */
+  async count(): Promise<number> {
+    const elements = await this.all();
+    return elements.length;
+  }
+
+  /**
+   * 点击第一个匹配的元素
+   */
+  async click(options?: { timeout?: number; noWaitAfter?: boolean }): Promise<void> {
+    const element = await this.first();
+    if (!element) {
+      throw new Error(`Element not found for locator: ${JSON.stringify(this._selector)}`);
+    }
+    await element.click();
+  }
+
+  /**
+   * 双击第一个匹配的元素
+   */
+  async dblclick(options?: { timeout?: number }): Promise<void> {
+    const element = await this.first();
+    if (!element) {
+      throw new Error(`Element not found for locator: ${JSON.stringify(this._selector)}`);
+    }
+    await element.dblclick();
+  }
+
+  /**
+   * 长按第一个匹配的元素
+   */
+  async clickAndHold(duration: number = 1000): Promise<void> {
+    const element = await this.first();
+    if (!element) {
+      throw new Error(`Element not found for locator: ${JSON.stringify(this._selector)}`);
+    }
+    await element.longClick(duration);
+  }
+
+  /**
+   * 输入文本到第一个匹配的元素
+   */
+  async fill(text: string, options?: { timeout?: number }): Promise<void> {
+    const element = await this.first();
+    if (!element) {
+      throw new Error(`Element not found for locator: ${JSON.stringify(this._selector)}`);
+    }
+    await element.inputText(text);
+  }
+
+  /**
+   * 聚焦第一个匹配的元素
+   */
+  async focus(): Promise<void> {
+    // ArkUI 不需要显式聚焦
+  }
+
+  /**
+   * 悬停第一个匹配的元素
+   */
+  async hover(): Promise<void> {
+    // ArkUI 不支持 hover
+  }
+
+  /**
+   * 等待元素可见
+   */
+  async waitFor(options: { timeout?: number; state?: 'attached' | 'detached' | 'visible' | 'hidden' } = {}): Promise<void> {
+    const timeout = options.timeout || 30000;
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < timeout) {
+      const count = await this.count();
+
+      if (options.state === 'attached' || options.state === 'visible') {
+        if (count > 0) return;
+      } else if (options.state === 'detached' || options.state === 'hidden') {
+        if (count === 0) return;
+      } else {
+        if (count > 0) return;
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+
+    throw new Error(`Timeout waiting for locator: ${JSON.stringify(this._selector)}`);
+  }
+
+  /**
+   * 获取元素的文本内容
+   */
+  async textContent(): Promise<string | null> {
+    const element = await this.first();
+    return element?.text || null;
+  }
+
+  /**
+   * 获取元素的内部文本
+   */
+  async innerText(): Promise<string | null> {
+    return this.textContent();
+  }
+
+  /**
+   * 获取元素的 HTML 内容
+   */
+  async innerHTML(): Promise<string | null> {
+    return null; // ArkUI 不支持 HTML
+  }
+
+  /**
+   * 检查元素是否可见
+   */
+  async isVisible(): Promise<boolean> {
+    const element = await this.first();
+    return element !== null;
+  }
+
+  /**
+   * 检查元素是否可用
+   */
+  async isEnabled(): Promise<boolean> {
+    const element = await this.first();
+    return element?.enabled || false;
+  }
+
+  /**
+   * 检查元素是否可点击
+   */
+  async isDisabled(): Promise<boolean> {
+    const element = await this.first();
+    return element ? !element.enabled : true;
+  }
+
+  /**
+   * 截图
+   */
+  async screenshot(options?: { timeout?: number }): Promise<Buffer> {
+    return await this._device.screenshot();
+  }
+
+  /**
+   * 滚动到元素
+   */
+  async scrollIntoViewIfNeeded(): Promise<void> {
+    // ArkUI 自动处理滚动
+  }
+
+  /**
+   * 按回车键
+   */
+  async press(key: 'Enter' | 'Backspace' | 'Delete' | 'Tab' | 'Escape' | 'Home' | 'End'): Promise<void> {
+    const element = await this.first();
+    if (element) {
+      await element.pressKey(key.toLowerCase());
+    }
+  }
+
+  /**
+   * 滚动
+   */
+  async scroll(direction: 'up' | 'down' | 'left' | 'right', percent: number = 80): Promise<void> {
+    const element = await this.first();
+    if (element) {
+      await element.scroll(direction, percent);
+    }
+  }
+
+  /**
+   * 获取元素属性
+   */
+  async getAttribute(name: string): Promise<string | null> {
+    const element = await this.first();
+    if (!element) return null;
+
+    switch (name) {
+      case 'text':
+      case 'textContent':
+        return element.text || null;
+      case 'type':
+        return element.type;
+      case 'id':
+      case 'resourceId':
+        return element.resourceId || null;
+      case 'enabled':
+        return String(element.enabled);
+      case 'clickable':
+        return String(element.clickable);
+      default:
+        return null;
+    }
+  }
+
+  toString(): string {
+    const filters = this._filterStack.map(f => {
+      const parts: string[] = [];
+      if (f.type) parts.push(`type=${f.type}`);
+      if (f.text) parts.push(`text=${f.text}`);
+      if (f.accessibilityId) parts.push(`accessibilityId=${f.accessibilityId}`);
+      return parts.join(', ');
+    }).join(' -> ');
+
+    return `Locator(${JSON.stringify(this._selector)}${filters ? ' -> ' + filters : ''})`;
+  }
 }
 
 /**
