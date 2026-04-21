@@ -116,6 +116,13 @@ npx playwright show-trace trace.zip
 
 ```bash
 npm install -g @playwright/cli@latest
+```HO/OH//下载目录
+cd /path/to/dist
+# 安装 playwright-core
+   npm install ./playwright-core-1.60.0-next.tgz --ignore-scripts
+
+   # 安装 playwright (可选)
+   npm install ./playwright-1.60.0-next.tgz --ignore-scripts
 ```
 
 Optionally install skills for richer agent integration:
